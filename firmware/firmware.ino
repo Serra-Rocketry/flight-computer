@@ -15,7 +15,7 @@
 /* MÓDULO DE AVIÔNICA - START */
 
 // Definições de pinos e constantes
-#define INTERVAL 200
+#define INTERVAL 200 // Intervalo de execução do loop (ms, ~5Hz)  
 
 #define LORA_FREQ 868E6 // Frequência de operação
 #define SS_LORA 7
@@ -45,8 +45,8 @@ String file_dir = "";                                             // Diretório 
 bool parachute_deployed = false;                                  // Verificação da liberação do paraquedas
 const int MAXPOS = 0, MINPOS = 90;                                // Posição máxima e mínima do servo
 const float ALTITUDE_DROP_THRESHOLD = 10.0;                       // Ao menos 10m abaixo do referencial máximo (ajustar se necessário)
-const float ALTITUDE_THRESHOLD = 200.0;                           // Altura mínima para liberar o paraquedas (ajustar se necessário)
-const float VELOCITY_THRESHOLD = 5.0;                             // Velocidade de descida mínima para liberar o paraquedas (ajustar se necessário)
+const float ALTITUDE_THRESHOLD = 750.0;                           // Altura mínima para liberar o paraquedas (ajustar se necessário)
+const float VELOCITY_THRESHOLD = 80.0;                             // Velocidade de descida mínima para liberar o paraquedas (ajustar se necessário)
 const String TEAM_ID = "#100";                                    // ID da equipe
 sensors_event_t acc, gyr, temp;                                   // Variáveis para armazenar os dados do MPU6050
 
@@ -103,7 +103,7 @@ bool setupMPU()
 // Setup do servo motor
 void setupServo()
 {
-  ParachuteServo.attach(SERVO_PIN);
+  ParachuteServo.attach(SERVO_PIN);   
   delay(500);
   ParachuteServo.write(MINPOS);
 }
@@ -168,7 +168,7 @@ void handleParachute(float altitude, float velocity)
 {
   if (!parachute_deployed) // Confere se o paraquedas já foi acionado
   {
-    if (altitude <= max_altitude - ALTITUDE_DROP_THRESHOLD && (altitude < ALTITUDE_THRESHOLD || abs(velocity) > VELOCITY_THRESHOLD)) // Se a altitude cair 10m abaixo do referencial máximo e for menor que 100m
+    if (altitude <= max_altitude - ALTITUDE_DROP_THRESHOLD && (altitude < ALTITUDE_THRESHOLD || abs(velocity) > VELOCITY_THRESHOLD)) // Se a altitude cair 10m abaixo do referencial máximo e for menor que limiar
     {
       ParachuteServo.write(MAXPOS);
       unsigned long startTime = millis();
@@ -512,7 +512,7 @@ void setup()
 
   /* Server Block - END */
 
-  if (!(setupBMP() && setupMPU() && setupLoRa())) // Inicia os módulos AHT, BMP, MPU6050 e LoRa
+  if (!(setupBMP() && setupMPU() && setupLoRa())) // Inicia os módulos BMP, MPU6050 e LoRa
   {
     printBoth("Erro na configuração dos módulos!");
     buzzSignal("Alerta");

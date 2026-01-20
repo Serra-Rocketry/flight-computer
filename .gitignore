@@ -1,0 +1,96 @@
+# Arduino/ESP32
+*.bin
+*.elf
+*.hex
+*.map
+build/
+.build/
+*.d
+*.o
+*.a
+
+# PlatformIO
+.pio
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# KiCAD
+*~
+_autosave-*
+*.bak
+*.bck
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*-backups/
+*-save.pro
+*-save.kicad_pcb
+fp-info-cache
+~*.lck
+*.lck
+#auto_saved_files#
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Sistema Operacional
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+
+# Logs e dados temporários
+*.log
+*.csv
+*.dat
+
+# Arquivos compilados
+*.o
+*.ko
+*.obj
+*.elf
+*.exe
+*.out
+*.app
+
+# Dependências
+node_modules/
+package-lock.json
+.obsidian/
+
+# Arquivos de configuração local
+*.local
+.env
+secrets.h
+credentials.h
