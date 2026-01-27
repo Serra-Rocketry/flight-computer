@@ -1,74 +1,74 @@
 ```mermaid
 graph TD
-    %% Estilos
+    %% Styles
     classDef error fill:#f96,stroke:#333,stroke-width:2px;
     classDef success fill:#9f6,stroke:#333,stroke-width:2px;
     classDef logic fill:#add8e6,stroke:#333,stroke-width:2px;
     classDef io fill:#fffacd,stroke:#333,stroke-width:2px;
 
-    Start([Início - Power On]) --> InitBasic[Iniciar Serial, Wire e Servo]
-    InitBasic --> GPSWait[Aguardar GPS: 3 segundos]
+    Start([Start - Power On]) --> InitBasic[Initialize Serial, Wire and Servo]
+    InitBasic --> GPSWait[Wait for GPS: 3 seconds]
 
-    %% Bloco de Definição de Arquivo
-    GPSWait --> GPSTime{GPS tem Hora?}
-    GPSTime -- Sim --> NameTime[Nome do arquivo: Hora GPS]
-    GPSTime -- Não --> NameMillis[Nome do arquivo: Millis do Boot]
+    %% File Definition Block
+    GPSWait --> GPSTime{GPS has Time?}
+    GPSTime -- Yes --> NameTime[File name: GPS Time]
+    GPSTime -- No --> NameMillis[File name: Boot Millis]
     NameTime --> SetupFS
     NameMillis --> SetupFS
 
-    %% Bloco de Sistema de Arquivos
-    SetupFS{Iniciar LittleFS +<br>Criar Cabeçalho CSV}
-    SetupFS -- Falha --> FSError[Buzzer: Alerta<br>Reiniciar ESP32]:::error
-    SetupFS -- Sucesso --> StartWiFi[Iniciar WiFi AP +<br>Configurar Rotas Web Server]
+    %% File System Block
+    SetupFS{Initialize LittleFS +<br>Create CSV Header}
+    SetupFS -- Failure --> FSError[Buzzer: Alert<br>Restart ESP32]:::error
+    SetupFS -- Success --> StartWiFi[Start WiFi AP +<br>Configure Web Server Routes]
 
-    %% Bloco de Sensores e LoRa
-    StartWiFi --> InitMods{Iniciar BMP280,<br>MPU6050 e LoRa}
-    InitMods -- Falha --> ModError[Buzzer: Alerta<br>Continuar mesmo assim]:::error
-    InitMods -- Sucesso --> ModOk[Buzzer: Sucesso]:::success
+    %% Sensors and LoRa Block
+    StartWiFi --> InitMods{Initialize BMP280,<br>MPU6050 and LoRa}
+    InitMods -- Failure --> ModError[Buzzer: Alert<br>Continue anyway]:::error
+    InitMods -- Success --> ModOk[Buzzer: Success]:::success
 
-    %% Transição para o Loop
-    ModError --> LoopStart((Iniciar Loop))
+    %% Transition to Loop
+    ModError --> LoopStart((Start Loop))
     ModOk --> LoopStart
 
-    %% Processos Assíncronos (Servidor)
-    subgraph AsyncServer [Servidor Web Assíncrono]
+    %% Asynchronous Processes (Server)
+    subgraph AsyncServer [Asynchronous Web Server]
         direction TB
-        Listen[Escutar Porta 80]
+        Listen[Listen on Port 80]
         Route1[GET /: Home]
-        Route2[GET /api/files: Listar JSON]
+        Route2[GET /api/files: List JSON]
         Route3[GET /api/file: Download]
-        Route4[DELETE /api/file: Apagar]
+        Route4[DELETE /api/file: Delete]
         Listen -.-> Route1 & Route2 & Route3 & Route4
     end
     StartWiFi -.-> AsyncServer
 
-    %% Loop Principal
-    LoopStart --> TimerCheck{Passou 200ms?}
-    TimerCheck -- Não --> LoopStart
-    TimerCheck -- Sim --> ReadSensors[Ler Altitude BMP<br>Calcular Velocidade]
+    %% Main Loop
+    LoopStart --> TimerCheck{Did 200ms pass?}
+    TimerCheck -- No --> LoopStart
+    TimerCheck -- Yes --> ReadSensors[Read BMP Altitude<br>Calculate Velocity]
 
-    %% Coleta e Log
-    ReadSensors --> GetData[Coletar Dados:<br>GPS, BMP, MPU]:::io
-    GetData --> BuildStr[Montar String CSV]
-    BuildStr --> LogDisk[Salvar no LittleFS]:::io
-    LogDisk --> SendLoRa[Enviar via LoRa]:::io
+    %% Collection and Logging
+    ReadSensors --> GetData[Collect Data:<br>GPS, BMP, MPU]:::io
+    GetData --> BuildStr[Build CSV String]
+    BuildStr --> LogDisk[Save to LittleFS]:::io
+    LogDisk --> SendLoRa[Send via LoRa]:::io
 
-    %% Lógica de Apogeu
+    %% Apogee Logic
     SendLoRa --> CheckApogee{Alt > Max Alt?}
-    CheckApogee -- Sim --> UpdateMax[Atualizar Max Altitude]:::logic
-    CheckApogee -- Não --> CheckParachute
+    CheckApogee -- Yes --> UpdateMax[Update Max Altitude]:::logic
+    CheckApogee -- No --> CheckParachute
 
-    %% Lógica do Paraquedas
-    UpdateMax --> CheckParachute{Paraquedas<br>Acionado?}
-    CheckParachute -- Sim --> Beep[Buzzer: Beep Ativado]
-    CheckParachute -- Não --> DropCond{Caiu 10m do Apogeu?}
+    %% Parachute Logic
+    UpdateMax --> CheckParachute{Parachute<br>Deployed?}
+    CheckParachute -- Yes --> Beep[Buzzer: Beep Activated]
+    CheckParachute -- No --> DropCond{Dropped 10m from Apogee?}
 
-    DropCond -- Não --> UpdateTimer
-    DropCond -- Sim --> SafeCond{Alt < 200m OU<br>Vel > 5m/s?}
+    DropCond -- No --> UpdateTimer
+    DropCond -- Yes --> SafeCond{Alt < 200m OR<br>Vel > 5m/s?}
 
-    SafeCond -- Não --> UpdateTimer
-    SafeCond -- Sim --> Deploy[Mover Servo 90° -> 0°<br>Flag = true]:::success
-    Deploy --> UpdateTimer[Atualizar Tempo Anterior]
+    SafeCond -- No --> UpdateTimer
+    SafeCond -- Yes --> Deploy[Move Servo 90° -> 0°<br>Flag = true]:::success
+    Deploy --> UpdateTimer[Update Previous Time]
     UpdateTimer --> LoopStart
 
 ```

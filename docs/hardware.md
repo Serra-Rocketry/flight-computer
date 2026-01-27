@@ -1,279 +1,279 @@
-# Documentação de Hardware - Computador de Bordo
+# Hardware Documentation - Onboard Computer
 
-## Visão Geral
+## Overview
 
-O computador de bordo utiliza um microcontrolador ESP32-C3 como núcleo, integrado com sensores de altitude, GPS, IMU e um módulo de comunicação LoRa. O PCB foi projetado no KiCad com compatibilidade para a forma e conectores do foguete SR21000.
+The onboard computer uses an ESP32-C3 microcontroller as its core, integrated with altitude sensors, GPS, IMU and a LoRa communication module. The PCB was designed in KiCad with compatibility for the shape and connectors of the SR21000 rocket.
 
-## Plataforma Principal
+## Main Platform
 
 ### ESP32-C3 SuperMini
 
-**Especificações**:
+**Specifications**:
 
-- **Processador**: RISC-V 32-bit @ 160 MHz
+- **Processor**: RISC-V 32-bit @ 160 MHz
 - **RAM**: 400 KB (SRAM)
 - **Flash**: 4 MB
-- **Periféricos**: UART, SPI, I2C, GPIO, ADC, Timer
+- **Peripherals**: UART, SPI, I2C, GPIO, ADC, Timer
 - **WiFi**: 802.11b/g/n
-- **Tamanho**: Breakout compacto de 18x22 mm
+- **Size**: Compact 18x22 mm breakout
 
-**Pinos Utilizados**:
+**Used Pins**:
 
 ```
-Pino 0   → BUZZER_PIN
-Pino 1   → RST_LORA (Reset do LoRa)
-Pino 2   → DIO0_LORA (Interrupção do LoRa)
-Pino 3   → SERVO_PIN (Servo motor)
-Pino 7   → SS_LORA (Chip Select LoRa)
-Pino 20  → RX_GPS (Serial 1 RX)
-Pino 21  → TX_GPS (Serial 1 TX)
-Pino 4   → SDA (I2C - BMP280, MPU6050)
-Pino 5   → SCL (I2C - BMP280, MPU6050)
-Pino 6   → MOSI (SPI - LoRa)
-Pino 8   → MISO (SPI - LoRa)
-Pino 9   → CLK (SPI - LoRa)
+Pin 0   → BUZZER_PIN
+Pin 1   → RST_LORA (LoRa Reset)
+Pin 2   → DIO0_LORA (LoRa Interrupt)
+Pin 3   → SERVO_PIN (Servo motor)
+Pin 7   → SS_LORA (LoRa Chip Select)
+Pin 20  → RX_GPS (Serial 1 RX)
+Pin 21  → TX_GPS (Serial 1 TX)
+Pin 4   → SDA (I2C - BMP280, MPU6050)
+Pin 5   → SCL (I2C - BMP280, MPU6050)
+Pin 6   → MOSI (SPI - LoRa)
+Pin 8   → MISO (SPI - LoRa)
+Pin 9   → CLK (SPI - LoRa)
 ```
 
-**Alimentação**: 3.3V nominal (regulado por LM2596)
+**Power Supply**: 3.3V nominal (regulated by LM2596)
 
-## Sensores
+## Sensors
 
-### 1. BMP280 - Sensor de Pressão Barométrica
+### 1. BMP280 - Barometric Pressure Sensor
 
-**Função**: Medição de altitude e pressão atmosférica
+**Function**: Measurement of altitude and atmospheric pressure
 
-**Especificações**:
+**Specifications**:
 
-- **Faixa de Pressão**: 300 - 1100 hPa
-- **Resolução**: 0.01 hPa (1 Pa)
-- **Precisão de Altitude**: ±1 m
+- **Pressure Range**: 300 - 1100 hPa
+- **Resolution**: 0.01 hPa (1 Pa)
+- **Altitude Accuracy**: ±1 m
 - **Interface**: I2C
-- **Endereço I2C**: 0x77 (padrão)
+- **I2C Address**: 0x77 (default)
 
-**Pinagem**:
-| Pino | Função | Conexão |
-|------|--------|---------|
-| VCC | Alimentação | 3.3V |
+**Pinout**:
+| Pin | Function | Connection |
+|-----|----------|------------|
+| VCC | Power | 3.3V |
 | GND | Ground | GND |
-| SCL | Clock I2C | GPIO 5 |
-| SDA | Data I2C | GPIO 4 |
+| SCL | I2C Clock| GPIO 5 |
+| SDA | I2C Data | GPIO 4 |
 
-**Montagem**: Breakout GY-BMP280 solda direta no PCB
+**Assembly**: GY-BMP280 breakout direct solder on PCB
 
-### 2. MPU6050 - IMU (Acelerômetro + Giroscópio)
+### 2. MPU6050 - IMU (Accelerometer + Gyroscope)
 
-**Função**: Medição de aceleração e velocidade angular
+**Function**: Measurement of acceleration and angular velocity
 
-**Especificações**:
+**Specifications**:
 
-- **Acelerômetro**:
-  - Faixa: ±2, ±4, ±8, ±16 g (configurável)
-  - Resolução: 16 bits
-  - Taxa de amostragem: até 8 kHz
-- **Giroscópio**:
-  - Faixa: ±250, ±500, ±1000, ±2000 °/s
-  - Resolução: 16 bits
-  - Taxa de amostragem: até 8 kHz
+- **Accelerometer**:
+  - Range: ±2, ±4, ±8, ±16 g (configurable)
+  - Resolution: 16 bits
+  - Sample rate: up to 8 kHz
+- **Gyroscope**:
+  - Range: ±250, ±500, ±1000, ±2000 °/s
+  - Resolution: 16 bits
+  - Sample rate: up to 8 kHz
 - **Interface**: I2C
-- **Endereço I2C**: 0x68 (padrão)
+- **I2C Address**: 0x68 (default)
 
-**Pinagem**:
-| Pino | Função | Conexão |
-|------|--------|---------|
-| VCC | Alimentação | 3.3V |
+**Pinout**:
+| Pin | Function | Connection |
+|-----|----------|------------|
+| VCC | Power | 3.3V |
 | GND | Ground | GND |
-| SCL | Clock I2C | GPIO 5 |
-| SDA | Data I2C | GPIO 4 |
+| SCL | I2C Clock| GPIO 5 |
+| SDA | I2C Data | GPIO 4 |
 
-**Montagem**: Breakout com solda direta no PCB
+**Assembly**: Breakout with direct solder on PCB
 
-### 3. NEO-6M - Módulo GPS
+### 3. NEO-6M - GPS Module
 
-**Função**: Geolocalização e sincronização de tempo
+**Function**: Geolocation and time synchronization
 
-**Especificações**:
+**Specifications**:
 
-- **Sensibilidade**: -161 dBm
-- **Tempo de aquisição**: Cold start ~27s, Hot start ~3s
-- **Precisão**: ±2.5 m
-- **Taxa de atualização**: até 10 Hz
-- **Protocolo**: NMEA 0183
-- **Interface**: UART serial
+- **Sensitivity**: -161 dBm
+- **Acquisition Time**: Cold start ~27s, Hot start ~3s
+- **Accuracy**: ±2.5 m
+- **Update Rate**: up to 10 Hz
+- **Protocol**: NMEA 0183
+- **Interface**: Serial UART
 
-**Pinagem**:
-| Pino | Função | Conexão |
-|------|--------|---------|
-| VCC | Alimentação | 3.3V |
+**Pinout**:
+| Pin | Function | Connection |
+|-----|----------|---------------|
+| VCC | Power | 3.3V |
 | GND | Ground | GND |
-| RX | Serial Receive | GPIO 21 (TX_GPS) |
-| TX | Serial Transmit | GPIO 20 (RX_GPS) |
+| RX | Serial RX| GPIO 21 |
+| TX | Serial TX| GPIO 20 |
 
-**Características**:
+**Features**:
 
-- Antena cerâmica integrada
-- Frequência: L1 (1575.42 MHz)
-- Constelações: GPS, GLONASS, Galileo, BeiDou
+- Integrated ceramic antenna
+- Frequency: L1 (1575.42 MHz)
+- Constellations: GPS, GLONASS, Galileo, BeiDou
 
-**Montagem**: Breakout com solda direta no PCB
+**Assembly**: Breakout with direct solder on PCB
 
-### 4. RFM95W - Módulo LoRa
+### 4. RFM95W - LoRa Module
 
-**Função**: Comunicação wireless de longo alcance com a base de lançamento
+**Function**: Long-range wireless communication with launch base
 
-**Especificações**:
+**Specifications**:
 
-- **Frequência**: 868 MHz ISM
-- **Alcance**: ~4 km (campo aberto, condições ideais)
-- **Taxa de Dados**: 1.5 - 37.5 kbps
-- **Potência de Transmissão**: +20 dBm (ajustável até +17 dBm)
-- **Sensibilidade**: -139 dBm
+- **Frequency**: 868 MHz ISM
+- **Range**: ~4 km (open field, ideal conditions)
+- **Data Rate**: 1.5 - 37.5 kbps
+- **Transmit Power**: +20 dBm (adjustable to +17 dBm)
+- **Sensitivity**: -139 dBm
 - **Interface**: SPI
 
-**Pinagem**:
-| Pino | Função | Conexão |
-|------|--------|---------|
-| VCC | Alimentação | 3.3V |
+**Pinout**:
+| Pin | Function | Connection |
+|-----|----------|---------------|
+| VCC | Power | 3.3V |
 | GND | Ground | GND |
-| MOSI | SPI Data In | GPIO 6 |
-| MISO | SPI Data Out | GPIO 8 |
-| CLK | SPI Clock | GPIO 9 |
-| NSS | SPI Chip Select | GPIO 7 (SS_LORA) |
-| NRST | Reset | GPIO 1 (RST_LORA) |
-| DIO0 | Interrupção TX/RX | GPIO 2 (DIO0_LORA) |
+| MOSI| SPI Data | GPIO 6 |
+| MISO| SPI Data | GPIO 8 |
+| CLK | SPI Clock| GPIO 9 |
+| NSS | SPI CS | GPIO 7 |
+| NRST| Reset | GPIO 1 |
+| DIO0| TX/RX Int| GPIO 2 |
 
-**Características**:
+**Features**:
 
-- Modulação: LoRa (Chirp Spread Spectrum)
-- Largura de banda: 125, 250 ou 500 kHz
-- Fator de espalhamento: 6-12 (trade-off range vs data rate)
-- Código de sincronização: 0xF3
+- Modulation: LoRa (Chirp Spread Spectrum)
+- Bandwidth: 125, 250 or 500 kHz
+- Spreading Factor: 6-12 (range vs data rate trade-off)
+- Sync Code: 0xF3
 
-**Montagem**: Breakout com solda direta na PCB
+**Assembly**: Breakout with direct solder on PCB
 
-## Atuadores
+## Actuators
 
-### Servo Motor - Controle do Paraquedas
+### Servo Motor - Parachute Control
 
-**Função**: Abrir o mecanismo de liberação do paraquedas
+**Function**: Open the parachute release mechanism
 
-**Especificações**:
+**Specifications**:
 
-- **Tipo**: Servo padrão 5V com engrenagem de metal
+- **Type**: Standard 5V servo with metal gears
 - **Torque**: ~4.8 kg/cm @ 5V
-- **Velocidade**: ~0.23 s/60°
-- **Precisão**: ±3°
-- **Peso**: ~9 g
+- **Speed**: ~0.23 s/60°
+- **Accuracy**: ±3°
+- **Weight**: ~9 g
 
-**Pinagem**:
-| Pino | Função |
-|------|--------|
-| Marrom | Ground |
-| Vermelho | +5V |
-| Amarelo/Laranja | Sinal PWM (GPIO 3) |
+**Pinout**:
+| Pin | Function |
+|-----|----------|
+| Brown | Ground |
+| Red | +5V |
+| Yellow/Orange | PWM Signal (GPIO 3) |
 
-**Montagem**: Servo orientado para baixo, acoplado mecanicamente ao sistema de paraquedas
+**Assembly**: Servo oriented downward, mechanically coupled to parachute system
 
-**Posições**:
+**Positions**:
 
-- 0° - Escotilha aberta (MAXPOS)
-- 90° - Escotilha fechada (MINPOS)
+- 0° - Hatch open (MAXPOS)
+- 90° - Hatch closed (MINPOS)
 
-### Buzzer - Sinalização Sonora
+### Buzzer - Audio Signaling
 
-**Função**: Indicador de status de inicialização
+**Function**: Initialization status indicator
 
-**Especificações**:
+**Specifications**:
 
-- **Tipo**: Buzzer ativo (5V)
-- **Frequência**: ~2.7 kHz
+- **Type**: Active buzzer (5V)
+- **Frequency**: ~2.7 kHz
 - **Volume**: ~85 dB
-- **Corrente**: ~30 mA
+- **Current**: ~30 mA
 
-**Pinagem**:
+**Pinout**:
 
-- Positivo → 5V (via resistor)
-- Negativo → GPIO 0 (BUZZER_PIN)
+- Positive → 5V (via resistor)
+- Negative → GPIO 0 (BUZZER_PIN)
 
-**Sinais**:
+**Signals**:
 
-- 3 bips curtos = Falha na inicialização
-- Sequência de bips = Inicialização bem-sucedida
+- 3 short beeps = Initialization failure
+- Beep sequence = Successful initialization
 
-## Alimentação
+## Power Supply
 
-### LM2596 - Conversor DC-DC Step Down
+### LM2596 - DC-DC Step Down Converter
 
-**Função**: Regular tensão das baterias para 3.3V/5V
+**Function**: Regulate battery voltage to 3.3V/5V
 
-**Especificações**:
+**Specifications**:
 
-- **Entrada**: 4.5 - 40V
-- **Saída 1**: 3.3V @ 3A (para ESP32, sensores I2C)
-- **Saída 2**: 5V @ 3A (para servo, buzzer, LoRa)
-- **Frequência**: 150 kHz
-- **Eficiência**: ~85%
+- **Input**: 4.5 - 40V
+- **Output 1**: 3.3V @ 3A (for ESP32, I2C sensors)
+- **Output 2**: 5V @ 3A (for servo, buzzer, LoRa)
+- **Frequency**: 150 kHz
+- **Efficiency**: ~85%
 
-### Baterias
+### Batteries
 
-**Configuração**: 3x 18650 em paralelo
+**Configuration**: 3x 18650 in parallel
 
-- **Tensão Nominal**: 3.7V
-- **Capacidade**: ~6000 mAh
-- **Autonomia Estimada**: ~4-6 horas
+- **Nominal Voltage**: 3.7V
+- **Capacity**: ~6000 mAh
+- **Estimated Autonomy**: ~4-6 hours
 
-## Placa de Circuito Impresso (PCB)
+## Printed Circuit Board (PCB)
 
-### Arquivos do KiCad
+### KiCad Files
 
-- **[CDB.kicad_pro](../hardware/CDB/CDB.kicad_pro)** - Arquivo de projeto
-- **[CDB.kicad_sch](../hardware/CDB/CDB.kicad_sch)** - Esquema eletrônico
-- **[CDB.kicad_pcb](../hardware/CDB/CDB.kicad_pcb)** - Layout da placa
-- **[CDB.step](../hardware/CDB/CDB.step)** - Modelo 3D
+- **[CDB.kicad_pro](../hardware/CDB/CDB.kicad_pro)** - Project file
+- **[CDB.kicad_sch](../hardware/CDB/CDB.kicad_sch)** - Schematic
+- **[CDB.kicad_pcb](../hardware/CDB/CDB.kicad_pcb)** - Board layout
+- **[CDB.step](../hardware/CDB/CDB.step)** - 3D model
 
-### Conectores
+### Connectors
 
-- **J2**: Servo motor (3 pinos)
-- **Conector de energia**: 2 pinos para 18650
+- **J2**: Servo motor (3 pins)
+- **Power Connector**: 2 pins for 18650
 
-### Dimensões Aproximadas
+### Approximate Dimensions
 
-- **Comprimento**: 125 mm
-- **Largura**: 50 mm
-- **Altura** (com componentes): ~30 mm
+- **Length**: 125 mm
+- **Width**: 50 mm
+- **Height** (with components): ~30 mm
 
-## Lista de Componentes (BOM)
+## Component List (BOM)
 
-Veja [CDB_bom.md](../hardware/CDB_bom.md) para a lista completa.
+See [CDB_bom.md](../hardware/CDB_bom.md) for the complete list.
 
-### Componentes Eletrônicos Principais
+### Main Electronic Components
 
-| Label       | Componente         | Quantidade | Função               |
-| ----------- | ------------------ | ---------- | -------------------- |
-| A2          | ESP32-C3 SuperMini | 1          | Microcontrolador     |
-| A3          | GY-BMP280 Breakout | 1          | Sensor de pressão    |
-| Componente1 | MPU6050            | 1          | IMU                  |
-| M3          | LM2596             | 1          | Regulador de tensão  |
-| M4          | NEO-6M             | 1          | GPS                  |
-| RFM95W1     | RFM95W LoRa        | 1          | Comunicação wireless |
-| J1          | Buzzer 5V          | 1          | Sinalização          |
-| J2          | Servo motor        | 1          | Controle paraquedas  |
+| Label       | Component          | Quantity | Function               |
+| ----------- | ------------------ | -------- | ---------------------- |
+| A2          | ESP32-C3 SuperMini | 1        | Microcontroller        |
+| A3          | GY-BMP280 Breakout | 1        | Pressure sensor        |
+| Componente1 | MPU6050            | 1        | IMU                    |
+| M3          | LM2596             | 1        | Voltage regulator      |
+| M4          | NEO-6M             | 1        | GPS                    |
+| RFM95W1     | RFM95W LoRa        | 1        | Wireless communication |
+| J1          | 5V Buzzer          | 1        | Signaling              |
+| J2          | Servo motor        | 1        | Parachute control      |
 
-### Componentes Passivos
+### Passive Components
 
-- Capacitores: 100 nF, 10 μF, 220 μF
-- Resistores: 1k, 10k, 100k Ohm
-- Conectores: Pinos, JST
+- Capacitors: 100 nF, 10 μF, 220 μF
+- Resistors: 1k, 10k, 100k Ohm
+- Connectors: Pins, JST
 
-## Diagrama de Blocos
+## Block Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     COMPUTADOR DE BORDO                      │
+│                  ONBOARD COMPUTER                            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
 │  │ BMP280   │  │ MPU6050  │  │ NEO-6M   │  │ RFM95W   │    │
-│  │Barômetro │  │   IMU    │  │   GPS    │  │  LoRa    │    │
+│  │Barometer │  │   IMU    │  │   GPS    │  │  LoRa    │    │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘    │
 │       │             │             │             │           │
 │       └─────────────┼─────────────┼─────────────┤           │
@@ -296,35 +296,35 @@ Veja [CDB_bom.md](../hardware/CDB_bom.md) para a lista completa.
 │                                                               │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │          LM2596 DC-DC Converter                      │   │
-│  │  Entrada: 7.4V (2x18650)  →  Saída: 3.3V e 5V     │   │
+│  │  Input: 7.4V (2x18650)  →  Output: 3.3V and 5V    │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                                                               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Códigos de Suporte/Teste
+## Support/Test Code
 
-Os código de teste individuais estão em [../test/](../test/) para validar cada componente:
+Individual test code is located in [../test/](../test/) to validate each component:
 
-- **[test/basico/basico.ino](../test/basico/basico.ino)** - Diagnóstico geral
-- **[test/buzzer/buzzer.ino](../test/buzzer/buzzer.ino)** - Teste do buzzer
-- **[test/lora/lora.ino](../test/lora/lora.ino)** - Teste LoRa
-- **[test/testeGPS/testeGPS.ino](../test/testeGPS/testeGPS.ino)** - Teste GPS
-- **[test/servo/servo.ino](../test/servo/servo.ino)** - Teste servo
-- **[test/LittleFS/LittleFS.ino](../test/LittleFS/LittleFS.ino)** - Teste armazenamento
+- **[test/basico/basico.ino](../test/basico/basico.ino)** - General diagnostics
+- **[test/buzzer/buzzer.ino](../test/buzzer/buzzer.ino)** - Buzzer test
+- **[test/lora/lora.ino](../test/lora/lora.ino)** - LoRa test
+- **[test/testeGPS/testeGPS.ino](../test/testeGPS/testeGPS.ino)** - GPS test
+- **[test/servo/servo.ino](../test/servo/servo.ino)** - Servo test
+- **[test/LittleFS/LittleFS.ino](../test/LittleFS/LittleFS.ino)** - Storage test
 
-## Testes Preliminares
+## Preliminary Tests
 
-- Verificar continuidade com multímetro
-- Ligar alimentação e verificar LEDs/buzzer
-- Usar código de teste básico
+- Check continuity with multimeter
+- Power on and check LEDs/buzzer
+- Use basic test code
 
-## Notas de Operação
+## Operation Notes
 
-- **Proteção**: Encapsulamento em cápsula isolante dentro do foguete
-- **Choque**: Não foi medido a acelaração máxima suportada.
+- **Protection**: Encapsulation in isolating capsule inside rocket
+- **Shock**: Maximum acceleration tolerance not yet measured
 
-## Referências
+## References
 
 - [ESP32-C3 Datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-c3_datasheet_en.pdf)
 - [BMP280 Datasheet](https://www.bosch-sensortec.com/products/environmental-sensors/pressure-sensors/bmp280/)

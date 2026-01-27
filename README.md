@@ -1,38 +1,63 @@
-# Aviônica - Computador de Bordo
+# Avionics - Onboard Computer
 
-Computador de bordo (CDB) para o foguete SR21000 da equipe de foguetemodelismo Serra Rocketry. Sistema embarcado que monitora altitude, localização GPS e controla a abertura automática do paraquedas durante o voo.
+![Version](https://img.shields.io/badge/tag-v1.0.0--LASC2025-orange)
+![Date](https://img.shields.io/badge/released-Jan%2027%202026-lightgrey)
+![Status](https://img.shields.io/badge/status-V2%20In%20Development-yellow)
 
-## Visão Geral
+> 🚧 **Development Notice**
+>
+> The V1 flight computer architecture has reached **End of Life (EOL)** and is preserved for historical reference.
+>  
+> Active development is ongoing for **V2**, featuring a new architecture based on **FreeRTOS and Finite State Machines**, on the `dev-2026` branch.
 
-- Monitoramento em tempo real de altitude, velocidade e posição GPS
-- Comunicação via LoRa com a base operacional
-- Armazenamento de telemetria em formato CSV
-- Controle automático do servo para abertura do paraquedas
-- Interface web para acesso aos dados armazenados
+Onboard computer (OBC) for the SR21000 rocket of the Serra Rocketry rocket modeling team. An embedded system that monitors altitude, velocity and GPS position, and autonomously controls parachute deployment during flight.
 
-## Estrutura do Projeto
+## Overview
+
+- Real-time monitoring of altitude, velocity and GPS position
+- LoRa communication with the operational base
+- Telemetry storage in CSV format
+- Automatic servo control for parachute opening
+- Web interface for accessing stored data
+
+## Directory Structure
 
 ```
-firmware/       Código principal do computador de bordo
-test/           Testes unitários de componentes individuais
-extras/         Códigos de suporte e experimentação
-hardware/       Esquemas, PCB e lista de componentes
-docs/           Documentação detalhada (software e hardware)
+firmware/       Main onboard computer code
+test/           Unit tests of individual components
+extras/         Support code and experimentation
+hardware/       Schematics, PCB and component list
+docs/           Detailed documentation (software and hardware)
 ```
 
-## Documentação
+## Documentation
 
-- **[software.md](docs/software.md)** - Detalhes do firmware, funções e bibliotecas
-- **[hardware.md](docs/hardware.md)** - Componentes, pinagem e especificações
-- **[flowchart.md](docs/flowchart.md)** - Fluxograma de execução do sistema
+- **[software.md](docs/software.md)** - Firmware details, functions and libraries
+- **[hardware.md](docs/hardware.md)** - Components, pinout and specifications
+- **[flowchart.md](docs/flowchart.md)** - System execution flowchart
 
-## Começando
+## Getting Started
 
-1. Abrir [firmware/firmware.ino](firmware/firmware.ino) na Arduino IDE
-2. Instalar bibliotecas necessárias
-3. Configurar porta COM e placa ESP32
-4. Upload para o microcontrolador
+> ⚠️ This section applies only to the V1 (LASC 2025) firmware.
+>  
+> The V2 system uses a different architecture and toolchain.
 
-## Licença
+1. Open [firmware/firmware.ino](firmware/firmware.ino) in Arduino IDE
+2. Install required libraries
+3. Configure COM port and ESP32 board
+4. Upload to microcontroller
 
-Projeto da Serra Rocketry - Equipe de Foguetemodelismo do IPRJ/UERJ
+## Repository Structure
+
+- **`main`**  
+  Legacy V1 flight computer (LASC 2025) – frozen and released.
+
+- **`dev-2026`**  
+  Active development branch for the V2 flight computer architecture.
+
+- **Releases / Tags**  
+  - `v1.0.0-LASC2025`: Final V1 flight firmware (SR21000 mission).
+
+## License
+
+Project by Serra Rocketry - Rocket Modeling Team at IPRJ/UERJ

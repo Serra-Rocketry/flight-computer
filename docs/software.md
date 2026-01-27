@@ -1,295 +1,295 @@
-# Documentação de Software - Computador de Bordo
+# Software Documentation - Onboard Computer
 
-## Visão Geral
+## Overview
 
-O firmware principal do computador de bordo é executado em uma plataforma ESP32, gerenciando sensores, comunicação e controle do paraquedas durante o voo.
+The main firmware of the onboard computer runs on an ESP32 platform, managing sensors, communication and parachute control during flight.
 
-## Arquitetura
+## Architecture
 
-### Arquivo Principal
+### Main File
 
-- **[firmware.ino](../firmware/firmware.ino)** - Código principal com setup e loop
+- **[firmware.ino](../firmware/firmware.ino)** - Main code with setup and loop
 
-### Organização do Código
+### Code Organization
 
 ```
-setup()                 // Inicialização de todos os componentes
-├── setupLittleFS()     // Sistema de arquivos
-├── setupBMP()          // Sensor de pressão
+setup()                 // Initialization of all components
+├── setupLittleFS()     // File system
+├── setupBMP()          // Pressure sensor
 ├── setupMPU()          // IMU
-├── setupLoRa()         // Comunicação
+├── setupLoRa()         // Communication
 └── setupServo()        // Servo motor
 
-loop()                  // Execução contínua
-├── readSensors()       // Coleta de dados
-├── handleParachute()   // Controle do paraquedas
-├── logData()           // Armazenamento
-└── sendLoRa()          // Transmissão
+loop()                  // Continuous execution
+├── readSensors()       // Data collection
+├── handleParachute()   // Parachute control
+├── logData()           // Storage
+└── sendLoRa()          // Transmission
 ```
 
-## Módulos e Sensores
+## Modules and Sensors
 
-### 1. BMP280 - Sensor de Pressão e Altitude
+### 1. BMP280 - Barometric Pressure Sensor
 
-**Função**: Medir altitude e pressão atmosférica
+**Function**: Measure altitude and atmospheric pressure
 
-**Bibliotecas**:
+**Libraries**:
 
 - `Adafruit_BMP280`
 - `Wire` (I2C)
 
-**Dados Coletados**:
+**Collected Data**:
 
-- Altitude relativa (m)
-- Pressão (hPa)
-- Pressão na base (calibrada no setup)
+- Relative altitude (m)
+- Pressure (hPa)
+- Base pressure (calibrated at setup)
 
-**Código de Teste**: [test/basico/basico.ino](../test/basico/basico.ino)
+**Test Code**: [test/basico/basico.ino](../test/basico/basico.ino)
 
-**Variáveis Relacionadas**:
+**Related Variables**:
 
 ```cpp
-float base_altitude    // Altitude inicial (referencial)
-float base_pressure    // Pressão na base (hPa)
-float previous_altitude // Altura anterior (para cálculo de velocidade)
-float max_altitude     // Altura máxima alcançada
+float base_altitude    // Initial altitude (reference)
+float base_pressure    // Base pressure (hPa)
+float previous_altitude // Previous height (for velocity calculation)
+float max_altitude     // Maximum height reached
 ```
 
-### 2. MPU6050 - IMU (Acelerômetro + Giroscópio)
+### 2. MPU6050 - IMU (Accelerometer + Gyroscope)
 
-**Função**: Medir aceleração e rotação (dados de dinâmica do voo)
+**Function**: Measure acceleration and rotation (flight dynamics data)
 
-**Bibliotecas**:
+**Libraries**:
 
 - `Adafruit_MPU6050`
 - `Adafruit_Sensor`
 - `Wire` (I2C)
 
-**Dados Coletados**:
+**Collected Data**:
 
-- Aceleração em X, Y, Z (m/s²)
-- Velocidade angular em X, Y, Z (rad/s)
-- Temperatura do sensor (°C)
+- Acceleration in X, Y, Z (m/s²)
+- Angular velocity in X, Y, Z (rad/s)
+- Sensor temperature (°C)
 
-**Variáveis Relacionadas**:
+**Related Variables**:
 
 ```cpp
-sensors_event_t acc, gyr, temp  // Eventos de aceleração, giroscópio e temperatura
+sensors_event_t acc, gyr, temp  // Acceleration, gyroscope and temperature events
 ```
 
-### 3. NEO-6M - Módulo GPS
+### 3. NEO-6M - GPS Module
 
-**Função**: Obter latitude, longitude, altitude GPS e hora
+**Function**: Get latitude, longitude, GPS altitude and time
 
-**Bibliotecas**:
+**Libraries**:
 
 - `TinyGPS++`
-- Comunicação serial UART
+- Serial UART communication
 
-**Pinos de Comunicação**:
+**Communication Pins**:
 
-- **RX_GPS**: Pino 20 (recebe dados do GPS)
-- **TX_GPS**: Pino 21 (transmite para o GPS)
+- **RX_GPS**: Pin 20 (receives data from GPS)
+- **TX_GPS**: Pin 21 (sends data to GPS)
 
-**Dados Coletados**:
+**Collected Data**:
 
 - Latitude (°)
 - Longitude (°)
-- Altitude GPS (m)
-- Quantidade de satélites
-- Data e hora UTC
+- GPS Altitude (m)
+- Number of satellites
+- Date and time UTC
 
-**Características**:
+**Features**:
 
-- Aguarda 3 segundos no setup para sincronização
-- Usa tempo GPS para nomear arquivo de log
+- Waits 3 seconds in setup for synchronization
+- Uses GPS time to name log file
 
-### 4. RFM95W - Módulo LoRa
+### 4. RFM95W - LoRa Module
 
-**Função**: Comunicação wireless de longo alcance com a base
+**Function**: Long-range wireless communication with the base
 
-**Frequência**: 868 MHz
+**Frequency**: 868 MHz
 
-**Bibliotecas**:
+**Libraries**:
 
 - `LoRa`
 - `SPI`
 
-**Pinos de Comunicação**:
+**Communication Pins**:
 
-- **SS_LORA**: Pino 7 (Chip Select)
-- **RST_LORA**: Pino 1 (Reset)
-- **DIO0_LORA**: Pino 2 (Interrupção)
+- **SS_LORA**: Pin 7 (Chip Select)
+- **RST_LORA**: Pin 1 (Reset)
+- **DIO0_LORA**: Pin 2 (Interrupt)
 
-**Configurações**:
-
-```cpp
-#define LORA_FREQ 868E6      // Frequência
-#define SYNC_WORD 0xF3       // Código de sincronização
-```
-
-**Dados Transmitidos**: String concatenada com dados de todos os sensores em formato CSV
-
-### 5. Servo Motor - Controle do Paraquedas
-
-**Função**: Abrir o paraquedas em altitude apropriada
-
-**Pino**: **SERVO_PIN = 3**
-
-**Posições**:
-
-- **MAXPOS = 0°** (Paraquedas fechado)
-- **MINPOS = 90°** (Paraquedas aberto)
-
-**Critérios de Abertura**:
+**Configuration**:
 
 ```cpp
-const float ALTITUDE_THRESHOLD = 750.0      // Altura mínima (m)
-const float ALTITUDE_DROP_THRESHOLD = 10.0  // Queda mínima do pico (m)
-const float VELOCITY_THRESHOLD = 80.0        // Velocidade de descida mínima (m/s)
+#define LORA_FREQ 868E6      // Frequency
+#define SYNC_WORD 0xF3       // Sync code
 ```
 
-**Função de Controle**: `handleParachute()`
+**Transmitted Data**: Concatenated string with data from all sensors in CSV format
 
-### 6. Buzzer - Sinalização
+### 5. Servo Motor - Parachute Control
 
-**Função**: Indicar status de inicialização e operação
+**Function**: Open parachute at appropriate altitude
 
-**Pino**: **BUZZER_PIN = 0**
+**Pin**: **SERVO_PIN = 3**
 
-**Sinais**:
+**Positions**:
 
-- **Alerta**: Múltiplos bips curtos (falha na inicialização)
-- **Sucesso**: Sequência de bips (componentes iniciados corretamente)
+- **MAXPOS = 0°** (Parachute closed)
+- **MINPOS = 90°** (Parachute open)
 
-**Função de Controle**: `buzzSignal()`
+**Opening Criteria**:
 
-## Sistema de Armazenamento
+```cpp
+const float ALTITUDE_THRESHOLD = 750.0      // Minimum height (m)
+const float ALTITUDE_DROP_THRESHOLD = 10.0  // Minimum drop from peak (m)
+const float VELOCITY_THRESHOLD = 80.0        // Descent velocity minimum (m/s)
+```
 
-### LittleFS - Sistema de Arquivos
+**Control Function**: `handleParachute()`
 
-**Função**: Armazenar dados de telemetria em tempo real
+### 6. Buzzer - Signaling
 
-**Formato de Arquivo**: CSV
+**Function**: Indicate initialization status and operation
 
-**Nome do Arquivo**:
+**Pin**: **BUZZER_PIN = 0**
 
-- Se GPS está sincronizado: `HH_MM_SS-Dados.csv` (hora do GPS)
-- Se GPS não sincronizado: `{millis}-Dados.csv`
+**Signals**:
 
-**Cabeçalho CSV**:
+- **Alert**: Multiple short beeps (initialization failure)
+- **Success**: Beep sequence (components started correctly)
+
+**Control Function**: `buzzSignal()`
+
+## Storage System
+
+### LittleFS - File System
+
+**Function**: Store telemetry data in real time
+
+**File Format**: CSV
+
+**File Name**:
+
+- If GPS is synchronized: `HH_MM_SS-Dados.csv` (GPS time)
+- If GPS not synchronized: `{millis}-Dados.csv`
+
+**CSV Header**:
 
 ```csv
 ID,Packet,Time,Latitude,Longitude,GPS_Altitude,Satellites,Date,Hours,Minutes,Seconds,
 BMP_Altitude,Pressure,AccX,AccY,AccZ,GyroX,GyroY,GyroZ,Temp,ParachuteStatus
 ```
 
-**Funções de Arquivo**:
+**File Functions**:
 
-- `setupLittleFS()` - Inicializa o sistema
-- `writeFile()` - Cria novo arquivo com cabeçalho
-- `appendFile()` - Adiciona linha ao arquivo
+- `setupLittleFS()` - Initializes the system
+- `writeFile()` - Creates new file with header
+- `appendFile()` - Adds line to file
 
-## Comunicação
+## Communication
 
 ### Serial UART
 
 - **Baud Rate**: 115200
-- **Uso**: Debug e monitoramento em tempo real
+- **Use**: Debug and real-time monitoring
 
 ### LoRa
 
-- **Alcance**: Até ~4 km (em campo aberto)
-- **Taxa de Dados**: ~1-5 kbps
-- **Frequência**: 868 MHz
+- **Range**: Up to ~4 km (in open field)
+- **Data Rate**: ~1-5 kbps
+- **Frequency**: 868 MHz
 
-## Interface Web
+## Web Interface
 
-**Funcionalidade**: Servidor assíncrono na porta 80
+**Functionality**: Asynchronous server on port 80
 
 **Endpoints**:
 
-- `GET /` - Página inicial (HTML)
-- `GET /api/files` - Lista arquivos em JSON
-- `GET /api/file?name=` - Download de arquivo
-- `DELETE /api/file?name=` - Deletar arquivo
+- `GET /` - Home page (HTML)
+- `GET /api/files` - List files in JSON
+- `GET /api/file?name=` - Download file
+- `DELETE /api/file?name=` - Delete file
 
-**Bibliotecas**:
+**Libraries**:
 
 - `ESPAsyncWebServer`
 - `WiFi`
 - `ArduinoJson`
 
-## Parâmetros Ajustáveis
+## Adjustable Parameters
 
 ```cpp
-#define INTERVAL 200                              // Intervalo de leitura (ms)
-const float ALTITUDE_THRESHOLD = 750.0            // Altura mínima para paraquedas (m)
-const float ALTITUDE_DROP_THRESHOLD = 10.0        // Queda de referencial (m)
-const float VELOCITY_THRESHOLD = 80.0              // Velocidade mínima descida (m/s)
-const String TEAM_ID = "#100"                     // ID da equipe
+#define INTERVAL 200                              // Reading interval (ms)
+const float ALTITUDE_THRESHOLD = 750.0            // Minimum height for parachute (m)
+const float ALTITUDE_DROP_THRESHOLD = 10.0        // Drop from reference (m)
+const float VELOCITY_THRESHOLD = 80.0              // Descent velocity minimum (m/s)
+const String TEAM_ID = "#100"                     // Team ID
 ```
 
-## Fluxo de Execução
+## Execution Flow
 
-1. **Inicialização** (setup)
-   - Configura comunicação serial
-   - Inicializa I2C e SPI
-   - Aguarda sincronização GPS (3s)
-   - Cria arquivo de log
-   - Inicializa sensores e módulos
-   - Inicia servidor web
+1. **Initialization** (setup)
+   - Configure serial communication
+   - Initialize I2C and SPI
+   - Wait for GPS synchronization (3s)
+   - Create log file
+   - Initialize sensors and modules
+   - Start web server
 
-2. **Loop Principal**
-   - Verifica intervalo de 200ms
-   - Lê altitude e IMU
-   - Calcula velocidade de descida
-   - Verifica critério de abertura do paraquedas
-   - Registra dados em arquivo
-   - Transmite via LoRa
+2. **Main Loop**
+   - Check 200ms interval
+   - Read altitude and IMU
+   - Calculate descent velocity
+   - Check parachute opening criteria
+   - Record data in file
+   - Transmit via LoRa
 
-3. **Controle de Paraquedas**
-   - Aguarda altura mínima
-   - Monitora queda em relação ao pico
-   - Verifica velocidade de descida
-   - Abre servo quando todos os critérios são atendidos
+3. **Parachute Control**
+   - Wait for minimum height
+   - Monitor drop relative to peak
+   - Check descent velocity
+   - Open servo when all criteria are met
 
-## Códigos de Suporte
+## Support Code
 
-Os arquivos em [extras/](../extras/) contêm código funcional e testado para referência:
+The files in [extras/](../extras/) contain functional and tested code for reference:
 
-- **[extras/ino_files/](../extras/ino_files/)** - Versões anteriores do código integrado
-- **[extras/FileBrowser/FileBrowser.ino](../extras/FileBrowser/FileBrowser.ino)** - Navegador de arquivos, base para o servidor assíncrono
-- **[extras/LoraReceiver/LoraReceiver.ino](../extras/LoraReceiver/LoraReceiver.ino)** - Receptor LoRa para base
-- **[extras/Serial/Serial.py](../extras/Serial/Serial.py)** - Script Python para monitoramento serial
+- **[extras/ino_files/](../extras/ino_files/)** - Earlier versions of integrated code
+- **[extras/FileBrowser/FileBrowser.ino](../extras/FileBrowser/FileBrowser.ino)** - File browser, base for async server
+- **[extras/LoraReceiver/LoraReceiver.ino](../extras/LoraReceiver/LoraReceiver.ino)** - LoRa receiver for base
+- **[extras/Serial/Serial.py](../extras/Serial/Serial.py)** - Python script for serial monitoring
 
-## Testes
+## Tests
 
-Os testes unitários estão em [test/](../test/):
+Unit tests are located in [test/](../test/):
 
-- **[test/basico/basico.ino](../test/basico/basico.ino)** - Teste básico de inicialização
-- **[test/buzzer/buzzer.ino](../test/buzzer/buzzer.ino)** - Teste do buzzer
-- **[test/lora/lora.ino](../test/lora/lora.ino)** - Teste da comunicação LoRa
-- **[test/testeGPS/testeGPS.ino](../test/testeGPS/testeGPS.ino)** - Teste do módulo GPS
-- **[test/servo/servo.ino](../test/servo/servo.ino)** - Teste do servo motor
-- **[test/LittleFS/LittleFS.ino](../test/LittleFS/LittleFS.ino)** - Teste do sistema de arquivos
+- **[test/basico/basico.ino](../test/basico/basico.ino)** - Basic initialization test
+- **[test/buzzer/buzzer.ino](../test/buzzer/buzzer.ino)** - Buzzer test
+- **[test/lora/lora.ino](../test/lora/lora.ino)** - LoRa communication test
+- **[test/testeGPS/testeGPS.ino](../test/testeGPS/testeGPS.ino)** - GPS module test
+- **[test/servo/servo.ino](../test/servo/servo.ino)** - Servo motor test
+- **[test/LittleFS/LittleFS.ino](../test/LittleFS/LittleFS.ino)** - File system test
 
-## Dependências - Bibliotecas Arduino
+## Dependencies - Arduino Libraries
 
-| Biblioteca        | Versão | Uso                |
-| ----------------- | ------ | ------------------ |
-| Adafruit BMP280   | Latest | Sensor de pressão  |
-| Adafruit MPU6050  | Latest | IMU                |
-| Adafruit Sensor   | Latest | Base para sensores |
-| TinyGPS++         | Latest | Decodificação GPS  |
-| LoRa              | Latest | Módulo LoRa        |
-| ESP32Servo        | Latest | Controle de servo  |
-| ArduinoJson       | ^6.0   | Serialização JSON  |
-| ESPAsyncWebServer | Latest | Servidor web       |
+| Library           | Version | Use                |
+| ----------------- | ------- | ------------------ |
+| Adafruit BMP280   | Latest  | Pressure sensor    |
+| Adafruit MPU6050  | Latest  | IMU                |
+| Adafruit Sensor   | Latest  | Sensor base        |
+| TinyGPS++         | Latest  | GPS decoding       |
+| LoRa              | Latest  | LoRa module        |
+| ESP32Servo        | Latest  | Servo control      |
+| ArduinoJson       | ^6.0    | JSON serialization |
+| ESPAsyncWebServer | Latest  | Web server         |
 
-## Notas de Desenvolvimento
+## Development Notes
 
-- **Sincronização**: O sistema aguarda sincronização do GPS antes de iniciar o voo
-- **Redundância**: O paraquedas utiliza múltiplos critérios para evitar abertura incorreta
-- **Logging**: Todos os dados são armazenados localmente antes da transmissão via LoRa
-- **Power Efficiency**: O ESP32 opera em modo contínuo durante o voo
+- **Synchronization**: The system waits for GPS synchronization before flight starts
+- **Redundancy**: The parachute uses multiple criteria to prevent incorrect opening
+- **Logging**: All data is stored locally before transmission via LoRa
+- **Power Efficiency**: The ESP32 operates in continuous mode during flight
