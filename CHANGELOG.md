@@ -27,6 +27,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Security-related changes
 
+---
+
+## [Unreleased] - 2.0.0
+
+### Added
+
+- Project scaffolding for V2 Flight Computer
+- Documentation placeholders (software.md, hardware.md, flowchart.md)
+- Branch `dev-2026` created for active development
+
+### Notes
+
+- No functional firmware implemented yet
+- FSM design and RTOS task planning in progress
+- Repository ready for development of V2
+
+---
+
 ## [1.0.0] - 2026-01-27
 
 ### Added
