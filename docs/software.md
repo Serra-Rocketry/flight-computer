@@ -2,15 +2,137 @@
 
 ## Overview
 
-The main firmware of the onboard computer runs on an ESP32 platform, managing sensors, communication and parachute control during flight.
+The Flight Computer v2.0 firmware runs on an ESP32-S3 platform with a FreeRTOS multi-task architecture, managing sensors, communication and parachute control during flight. 
 
-## Architecture
+**Version**: 2.0.0-dev  
+**Architecture**: FreeRTOS-based (Phases 1-2 completed)  
+**Hardware**: ESP32-S3-DevKitC-1-N8R8  
+**Team**: #100 - Serra Rocketry
 
-### Main File
+## Architecture Overview
 
-- **[firmware.ino](../firmware/firmware.ino)** - Main code with setup and loop
+### v2.0 - Object-Oriented Design with FreeRTOS
 
-### Code Organization
+The v2.0 refactoring introduces:
+- **Object-oriented sensor abstraction** (ISensor interface)
+- **Multi-task real-time architecture** (FreeRTOS)
+- **Type-safe data sharing** (SensorData structures)
+- **7-state flight state machine** (validated with real flight data)
+
+```mermaid
+graph TB
+    subgraph "Core 1 - Flight Critical"
+        FC[FlightControlTask<br/>50Hz, Priority 20]
+        FSM[Flight State Machine<br/>IDLE→LIFTOFF→...→LANDED]
+        SENS[Sensor Updates<br/>BMP585, LSM6DS3]
+        
+        FC --> FSM
+        FC --> SENS
+    end
+    
+    subgraph "Core 0 - Non-Critical"
+        TEL[TelemetryTask<br/>5Hz, Priority 5]
+        LOG[LoggerTask<br/>Low Priority]
+        GPS[GPS Module<br/>1Hz]
+        
+        TEL --> GPS
+    end
+    
+    subgraph "Shared Resources"
+        QUEUE[(Sensor Data Queue<br/>25 slots, 96 bytes)]
+        LOGQUEUE[(Log Queue<br/>50 slots, 144 bytes)]
+    end
+    
+    FC -->|xQueueSend| QUEUE
+    TEL -->|xQueueReceive| QUEUE
+    
+    FC -->|xQueueSend| LOGQUEUE
+    LOG -->|xQueueReceive| LOGQUEUE
+    
+    style FC fill:#f96,stroke:#333,stroke-width:2px
+    style TEL fill:#9cf,stroke:#333,stroke-width:2px
+    style LOG fill:#9cf,stroke:#333,stroke-width:2px
+```
+
+### Project Structure (v2.0)
+
+```
+firmware/
+├── firmware.ino                    # Main entry point (FreeRTOS setup)
+├── config.h                        # Configuration constants
+│
+├── sensors/                        # Sensor abstraction layer
+│   ├── ISensor.h                  # Abstract interface for all sensors ⭐ NEW
+│   ├── BMP585Sensor.h             # Barometric pressure sensor (Phase 3)
+│   ├── LSM6DS3Sensor.h            # IMU: Accel + Gyro (Phase 3)
+│   └── GPSModule.h                # GNSS positioning (Phase 3)
+│
+├── flight/                         # Flight control logic
+│   ├── SensorData.h               # Shared data structures ⭐ NEW
+│   ├── FlightStateMachine.h       # 7-state FSM (Phase 4)
+│   ├── FlightControlTask.h        # Main flight control task (Phase 4)
+│   └── ParachuteControl.h         # Parachute deployment logic (Phase 4)
+│
+├── modules/                        # Refactored modules
+│   ├── TelemetryTask.h            # Telemetry & GPS task (Phase 4)
+│   ├── LoggerTask.h               # Data logging task (Phase 4)
+│   ├── LoRaModule.h               # LoRa communication (Phase 5)
+│   └── WebServer.h                # WiFi web interface (Phase 5)
+│
+├── REFACTORING_PLAN.md            # v2.0 Architecture specification
+├── MODULOS.md                     # Module documentation
+└── [old files]                    # v1.0 procedural code (for reference)
+    ├── bmp280_sensor.h
+    ├── mpu6050_sensor.h
+    └── gps_module.h
+```
+
+## Component Mapping
+
+### ISensor Interface → Implementations
+
+| Interface | Sensor | Hardware | Status | Phase |
+|-----------|--------|----------|--------|-------|
+| `ISensor` | BMP585Sensor | Bosch BMP585 Barometer | ⏳ In Progress | 3 |
+| `ISensor` | LSM6DS3Sensor | ST Microelectronics LSM6DS3 IMU | ⏳ In Progress | 3 |
+| `ISensor` | GPSModule | u-blox NEO-6M / NEO-M8 | ⏳ In Progress | 3 |
+| - | LoRa Module | Semtech RFM95W | ⏳ Planned | 5 |
+| - | Servo Control | MG92B Servo | ⏳ Planned | 4 |
+
+### Phases Completed
+
+#### ✅ Phase 1: Setup & Structure (2026-04-06)
+- Created sensor abstraction layer (`firmware/sensors/`)
+- Reorganized firmware into modular structure
+- Created `firmware/flight/` directory for flight control logic
+
+#### ✅ Phase 2: Base Interfaces (2026-04-06)
+- Implemented `ISensor.h` - abstract interface for all sensors
+- Implemented `SensorData.h` - shared data structures for inter-task communication
+- Added Doxygen documentation for all interfaces
+- Passed safety-critical code review
+- Added critical safety initializations (commit 4b0c239)
+
+#### ⏳ Phase 3: Sensor Implementations (In Progress)
+- [ ] BMP585Sensor.h - Barometric pressure + altitude calculation
+- [ ] LSM6DS3Sensor.h - Accelerometer + Gyroscope
+- [ ] GPSModule.h - GNSS positioning
+
+#### ⏳ Phase 4: Flight Control Integration (Planned)
+- [ ] FlightStateMachine.h - 7-state FSM
+- [ ] FlightControlTask - Core 1 flight logic
+- [ ] System integration tests
+
+#### ⏳ Phase 5: Communication & Logging (Planned)
+- [ ] LoRa telemetry module
+- [ ] WiFi web server
+- [ ] Data logging to LittleFS
+
+## Main File (Legacy v1.0 Architecture)
+
+- **[firmware.ino](../firmware/firmware.ino)** - Main code with setup and loop (v1.0)
+
+### Code Organization (v1.0 - Procedural)
 
 ```
 setup()                 // Initialization of all components

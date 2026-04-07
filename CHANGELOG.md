@@ -9,39 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Planned new features will be listed here
+- **Phase 1-2 Refactoring Completed**: Project structure and base interfaces for v2.0
+  - `firmware/sensors/ISensor.h` - Abstract interface for all sensors (BMP585, LSM6DS3, GPS)
+  - `firmware/flight/SensorData.h` - Shared data structures (SensorData, LogMessage)
+  - Sensor abstraction layer enabling polymorphic sensor implementations
+  - FreeRTOS-compatible data structures for inter-task communication via queues
+  - Complete Doxygen documentation for all interfaces
+  - **4-state Finite State Machine** (IDLE, ASCENT, DESCENT, LANDED) synchronized with test/FSM/FSM.ino
 
 ### Changed
 
-- Changes to existing functionality
+- Migrated from v1.0 procedural architecture to v2.0 Object-Oriented design
+- Restructured firmware directory with new `sensors/` and `flight/` modules
+- **FSM simplified to 4 main states** (IDLE, ASCENT, DESCENT, LANDED) with internal event flags:
+  - LIFTOFF, BURNOUT, APOGEE, FREEFALL tracked as boolean flags for diagnostics
+  - Matches production implementation in test/FSM/FSM.ino
+  - Reduces state complexity while maintaining detailed event tracking
+- Updated software.md with new project structure documentation
 
 ### Fixed
 
-- Bug fixes
+- **Critical Safety Initializations** (commit 4b0c239):
+  - All SensorData struct fields now have safe default values
+  - LogMessage buffer initialized with zero-terminator
+  - Prevents undefined behavior from uninitialized variables
+  - Ensures parachute_deployed flag cannot be random on startup
+  - Protects against NaN propagation in FSM transitions
 
-### Removed
+### Documentation Added
 
-- Removed or discontinued features
-
-### Security
-
-- Security-related changes
-
----
-
-## [Unreleased] - 2.0.0
-
-### Added
-
-- Project scaffolding for V2 Flight Computer
-- Documentation placeholders (software.md, hardware.md, flowchart.md)
-- Branch `dev-2026` created for active development
-
-### Notes
-
-- No functional firmware implemented yet
-- FSM design and RTOS task planning in progress
-- Repository ready for development of V2
+- `docs/adr/002-sensor-abstraction.md` - Architectural Decision Record for ISensor interface
+- `docs/phase-1-2-summary.md` - Executive summary of Phase 1-2 completion
+- Updated `docs/software.md` with new module structure and component mapping
 
 ---
 
