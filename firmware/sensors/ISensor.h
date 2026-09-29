@@ -1,18 +1,18 @@
 /**
  * @file ISensor.h
- * @brief Interface abstrata para sensores do flight computer
- * 
- * Define a interface padrão que todos os sensores devem implementar,
- * permitindo abstração e polimorfismo para BMP585, LSM6DS3, GPS, etc.
- * 
- * @author Team #100 - Serra Rocketry
+ * @brief Abstract interface for flight computer sensors
+ *
+ * Defines the standard interface that all sensors must implement,
+ * enabling abstraction and polymorphism for BMP585, LSM6DS3, GPS, etc.
+ *
+ * @author #11 - Serra Rocketry
  * @date 2026-04-06
  * @version 1.0.0
- * 
- * @see firmware/REFACTORING_PLAN.md linhas 54-57 - Estrutura de Diretórios
- * @see firmware/REFACTORING_PLAN.md linhas 365-386 - Interface Base (Fase 2)
- * @see firmware/sensors/BMP585Sensor.h - Exemplo de implementação concreta
- * @see firmware/flight/FlightControlTask.h - Uso em tasks FreeRTOS
+ *
+ * @see firmware/REFACTORING_PLAN.md lines 54-57 - Directory Structure
+ * @see firmware/REFACTORING_PLAN.md lines 365-386 - Base Interface (Phase 2)
+ * @see firmware/sensors/BMP585Sensor.h - Concrete implementation example
+ * @see firmware/flight/FlightControlTask.h - FreeRTOS task usage
  */
 
 #ifndef ISENSOR_H
@@ -21,136 +21,136 @@
 #include <Arduino.h>
 
 /**
- * @brief Interface abstrata para sensores do flight computer
- * 
- * Todos os sensores (barometro, IMU, GPS, etc.) devem herdar desta classe
- * e implementar os metodos definidos aqui.
- * 
+ * @brief Abstract interface for flight computer sensors
+ *
+ * All sensors (barometer, IMU, GPS, etc.) must inherit from this class
+ * and implement the defined methods.
+ *
  * @example
- * **Exemplo 1: Implementação de um sensor (BMP585Sensor)**
- * 
+ * **Example 1: Sensor Implementation (BMP585Sensor)**
+ *
  * @code{.cpp}
  * #include "ISensor.h"
  * #include <Adafruit_BMP5XX.h>
- * 
+ *
  * class BMP585Sensor : public ISensor {
  * private:
  *   Adafruit_BMP5XX _bmp;
  *   float _altitude;
  *   bool _isReady;
- * 
+ *
  * public:
  *   bool begin() override {
  *     if (!_bmp.begin_I2C(0x77)) {
- *       return false;  // Sensor não encontrado
+ *       return false;  // Sensor not found
  *     }
  *     _isReady = true;
  *     return true;
  *   }
- * 
+ *
  *   void update() override {
  *     if (!_isReady) return;
  *     sensors_event_t temp_event, pressure_event;
  *     _bmp.getEvent(&pressure_event, &temp_event);
  *     _altitude = _bmp.readAltitude(1013.25);
  *   }
- * 
+ *
  *   String getData() override {
  *     return String(_altitude) + "m";
  *   }
- * 
+ *
  *   bool isReady() override {
  *     return _isReady;
  *   }
  * };
  * @endcode
- * 
- * **Exemplo 2: Uso em FreeRTOS Task (50Hz)**
- * 
+ *
+ * **Example 2: FreeRTOS Task Usage (50Hz)**
+ *
  * @code{.cpp}
- * // Instância global do sensor
+ * // Global sensor instance
  * ISensor* g_baroSensor = nullptr;
- * 
- * // Inicialização na setup()
+ *
+ * // Setup initialization
  * void setup() {
  *   Serial.begin(115200);
  *   delay(1000);
- * 
+ *
  *   g_baroSensor = new BMP585Sensor();
  *   if (!g_baroSensor->begin()) {
- *     Serial.println("❌ Erro ao inicializar BMP585!");
- *     while(1);  // Travamento seguro
+ *     Serial.println("ERROR: BMP585 initialization failed!");
+ *     while(1);  // Safe halt
  *   }
- *   Serial.println("✅ BMP585 inicializado");
+ *   Serial.println("OK: BMP585 initialized");
  * }
- * 
+ *
  * // FlightControlTask (Core 1, 50Hz)
  * void flightControlTask(void* parameter) {
  *   TickType_t xLastWakeTime = xTaskGetTickCount();
  *   const TickType_t xFrequency = pdMS_TO_TICKS(20);  // 50Hz = 20ms
- * 
+ *
  *   while(true) {
- *     // Atualizar sensor (DEVE SER NÃO-BLOQUEANTE!)
+ *     // Update sensor (MUST BE NON-BLOCKING!)
  *     if (g_baroSensor->isReady()) {
  *       g_baroSensor->update();
  *       String data = g_baroSensor->getData();
- *       Serial.println(data);  // CSV ou JSON
+ *       Serial.println(data);  // CSV or JSON
  *     }
- * 
- *     // Delay sem bloquear outras tasks
+ *
+ *     // Delay without blocking other tasks
  *     vTaskDelayUntil(&xLastWakeTime, xFrequency);
  *   }
  * }
  * @endcode
- * 
- * @note A chamada a update() **DEVE SER NÃO-BLOQUEANTE** para não afetar
- *       outras tasks de maior prioridade em FreeRTOS.
- * 
- * @note Para sensores lentos (GPS), usar TelemetryTask (5Hz) ao invés de
- *       FlightControlTask (50Hz). Ver firmware/REFACTORING_PLAN.md.
+ *
+ * @note update() **MUST BE NON-BLOCKING** to avoid blocking
+ *       higher priority FreeRTOS tasks.
+ *
+ * @note For slow sensors (GPS), use TelemetryTask (5Hz) instead of
+ *       FlightControlTask (50Hz). See firmware/REFACTORING_PLAN.md.
  */
 class ISensor {
 public:
   /**
-   * @brief Destrutor virtual (necessario para polimorfismo)
-   * 
-   * Permite que objetos derivados sejam deletados via ponteiro base
-   * sem vazamento de memoria.
+   * @brief Virtual destructor (required for polymorphism)
+   *
+   * Allows derived objects to be deleted via base pointer
+   * without memory leaks.
    */
   virtual ~ISensor() = default;
-  
+
   /**
-   * @brief Inicializa o sensor
-   * 
-   * Deve ser chamado na setup() da aplicacao, antes de qualquer update().
-   * Pode ser bloqueante (durante calibracao, por exemplo).
-   * 
-   * @return true se inicializacao bem-sucedida, false em caso de erro
-   *         (sensor nao encontrado, comunicacao falhou, etc.)
+   * @brief Initializes the sensor
+   *
+   * Must be called in setup() before any update() calls.
+   * May be blocking (e.g., during calibration).
+   *
+   * @return true if initialization successful, false on error
+   *         (sensor not found, communication failed, etc.)
    */
   virtual bool begin() = 0;
-  
+
   /**
-   * @brief Atualiza as leituras do sensor
-   * 
-   * Esta funcao deve ser **nao-bloqueante** e chamada regularmente
-   * pelo task que gerencia o sensor. Para BMP585 e LSM6DS3, deve ser
-   * chamada em FlightControlTask a 50Hz. Para GPS, a 5Hz em TelemetryTask.
+   * @brief Updates sensor readings
+   *
+   * This function must be **non-blocking** and called regularly
+   * by the task managing the sensor. For BMP585 and LSM6DS3, should
+   * be called in FlightControlTask at 50Hz. For GPS, at 5Hz in TelemetryTask.
    */
   virtual void update() = 0;
-  
+
   /**
-   * @brief Retorna uma string com os dados do sensor (para Serial/logging)
-   * 
-   * @return String com dados formatados do sensor (ex: "BMP585: 1234.5m, 101.3hPa")
+   * @brief Returns sensor data as string (for Serial/logging)
+   *
+   * @return String with formatted sensor data (e.g., "BMP585: 1234.5m, 101.3hPa")
    */
   virtual String getData() = 0;
-  
+
   /**
-   * @brief Verifica se o sensor esta pronto para uso
-   * 
-   * @return true se sensor esta pronto (inicializado e operacional),
-   *         false caso contrario (nao inicializado, erro de I2C, etc.)
+   * @brief Checks if sensor is ready for use
+   *
+   * @return true if sensor is ready (initialized and operational),
+   *         false otherwise (not initialized, I2C error, etc.)
    */
   virtual bool isReady() = 0;
 };

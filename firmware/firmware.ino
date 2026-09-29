@@ -1,20 +1,19 @@
 /**
  * @file firmware.ino
- * @brief Main firmware entry point for Team #100 Flight Computer (Avionics System)
+ * @brief Main firmware entry point for #11 Flight Computer (Avionics System)
  * 
- * This is the main program file for a rocket/drone flight computer that handles
+ * This is the main program file for a rocket flight computer that handles
  * sensor data collection, parachute deployment, telemetry transmission, and
  * data storage. The system uses a modular architecture with separate header files
  * for each subsystem.
  * 
  * System capabilities:
- * - Altitude and atmospheric pressure monitoring (BMP280)
- * - Inertial measurement unit for orientation (MPU6050)
+ * - Altitude and atmospheric pressure monitoring (BMP585)
+ * - Inertial measurement unit for orientation (LSM6DS3)
  * - GPS position and time tracking
  * - Long-range telemetry via LoRa radio
- * - Autonomous parachute deployment based on flight profile
+ * - Autonomous parachute deployment based on flight profile (apogee, Option A)
  * - Data logging to onboard flash storage (LittleFS)
- * - WiFi access point for data retrieval and management
  * - Audio feedback via buzzer for system status
  * 
  * Flight phases:
@@ -22,37 +21,36 @@
  * 2. Pre-launch: Monitoring and data collection on ground
  * 3. Ascent: High-frequency data logging during powered flight
  * 4. Apogee detection: Tracking maximum altitude
- * 5. Descent: Parachute deployment and controlled landing
- * 6. Recovery: Post-flight data access via WiFi
+ * 5. Descent: Parachute deployment at apogee and controlled landing
+ * 6. Recovery: Post-flight data access via storage retrieval
  * 
  * @note All configuration parameters are in config.h
- * @note Data logging interval is 200ms (5Hz) as defined by INTERVAL
+ * @note FlightControlTask runs at 50Hz (FLIGHT_CONTROL_PERIOD_MS);
+ *       TelemetryTask and LoggerTask run at 5Hz.
  * 
- * @author Team #100 Avionics
- * @date 2024
+ * @author Serra Rocketry
+ * @date 2026
  */
-
-//==============================================================================
-// LIBRARY INCLUDES
-//==============================================================================
-
-#include <Wire.h>    // I2C communication for BMP280 and MPU6050
-#include <SPI.h>     // SPI communication for LoRa module
 
 //==============================================================================
 // MODULE INCLUDES
 //==============================================================================
 
 #include "config.h"             // Global configuration and constants
-#include "bmp280_sensor.h"      // Barometric pressure and altitude sensor
-#include "mpu6050_sensor.h"     // Inertial measurement unit (IMU)
-#include "gps_module.h"         // GPS positioning and timing
-#include "lora_module.h"        // LoRa long-range radio communication
-#include "filesystem_module.h"  // LittleFS data storage
-#include "parachute_module.h"   // Parachute deployment control
-#include "buzzer_module.h"      // Audio feedback and alerts
-#include "server_module.h"      // WiFi access point and web server
-#include "telemetry_module.h"   // Data aggregation and logging
+
+#include "sensors/BMP585Sensor.h"
+#include "sensors/LSM6DS3Sensor.h"
+#include "sensors/GPSModule.h"
+#include "flight/FlightStateMachine.h"
+#include "flight/FlightControlTask.h"
+#include "flight/TelemetryTask.h"
+#include "flight/LoggerTask.h"
+
+
+#include "modules/buzzer_module.h"
+#include "modules/filesystem_module.h"
+#include "modules/lora_module.h"
+#include "modules/parachute_module.h"
 
 //==============================================================================
 // SETUP - ONE-TIME INITIALIZATION
@@ -61,103 +59,68 @@
 /**
  * @brief Initialize all system components and prepare for flight
  * 
- * This function runs once at power-on and performs the following operations:
- * 1. Initialize communication buses (Serial, I2C)
- * 2. Initialize servo motor for parachute deployment
- * 3. Startup delay for system stabilization
- * 4. Acquire GPS time for unique filename generation
- * 5. Initialize filesystem and create data file with CSV header
- * 6. Start WiFi access point and web server
- * 7. Initialize all sensors (BMP280, MPU6050) and LoRa radio
- * 8. Provide audio feedback on initialization status
- * 
- * The system will restart automatically if critical initialization fails
- * (e.g., filesystem mount error). Non-critical errors (sensor failures)
- * are logged but allow the system to continue operating.
+ * This function runs once at power-on and delegates subsystem startup to the
+ * task init functions (each owns its objects, buses, queues and watchdog):
+ *  - initFlightControlTask(): Wire (I2C) + BMP585 + LSM6DS3 + FSM +
+ *    sensorDataQueue + servo
+ *  - initTelemetryTask(): SPI remap + GPS + telemetry queue consumer +
+ *    LoRa/file fan-out
+ *  - initLoggerTask(): logQueue + Serial/file logger
  * 
  * @note Serial monitor must be set to 115200 baud
- * @note The 5-second startup delay allows time to open Serial monitor
- * @warning System will restart on filesystem initialization failure
+ * @note The watchdog (TWDT) is armed inside taskFlightControl once it is
+ *       actually running, not here, to avoid a dangling armed watchdog.
+ *
+ * On any critical init failure the system prints the error, flushes Serial,
+ * and enters an infinite loop with the buzzer blinking — it does NOT call
+ * ESP.restart() to avoid losing state in flight.
  * 
  * @see setup() is called automatically once by Arduino framework
  */
-void setup()
-{
-  //----------------------------------------------------------------------------
-  // Communication and Hardware Initialization
-  //----------------------------------------------------------------------------
-  
-  Serial.begin(115200);   // Initialize USB serial at 115200 baud
-  Wire.begin();           // Initialize I2C bus for sensors (SDA/SCL default pins)
-  setupServo();           // Initialize servo motor for parachute deployment
-  
-  //----------------------------------------------------------------------------
-  // Startup Delay and Status Messages
-  //----------------------------------------------------------------------------
-  
-  pinMode(BUZZER_PIN, OUTPUT);  // Configure buzzer pin as output
-  
-  // 5-second countdown with status messages
-  // Provides time to open Serial monitor and stabilize sensors
-  for (int i = 0; i < 5; i++)
-  {
-    Serial.println("Initializing...");
-    delay(1000);  // 1 second delay per iteration
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  // I2C/SPI bus init is owned by the subsystems that use it:
+  //   - Wire.begin()      -> initFlightControlTask() (BMP585 + LSM6DS3)
+  //   - SPI.begin() remap -> initTelemetryTask(), BEFORE setupStorage()
+  //     (SD.begin uses the global SPI object; without the pin remap the SD
+  //     card is probed on the ESP32-S3 default SPI pins and always falls
+  //     back to LittleFS. setupLoRa() re-issues SPI.begin() — idempotent.)
+
+  bool initOk = true;
+  String initFail = "";
+
+  if (!initFlightControlTask()) {
+    initFail = "FATAL: FlightControl init failed (sensors/servo?)";
+    initOk = false;
+  } else if (!initTelemetryTask()) {
+    initFail = "FATAL: Telemetry init failed (LoRa/FS/GPS?)";
+    initOk = false;
+  } else if (!initLoggerTask()) {
+    initFail = "FATAL: Logger init failed";
+    initOk = false;
   }
 
-  //----------------------------------------------------------------------------
-  // GPS Time Acquisition and Filename Generation
-  //----------------------------------------------------------------------------
-  
-  setupGPS();  // Initialize GPS module and begin receiving data
-
-  // Attempt to get GPS time for unique filename, fallback to default if unavailable
-  // Format: HHMMSS-data.csv (e.g., "143052-data.csv" for 2:30:52 PM)
-  String time_data = getGPSTimeString();
-  file_dir = "/" + time_data + "-" + file_name;
-  Serial.print("Saving data to: ");
-  Serial.println(file_dir);
-
-  //----------------------------------------------------------------------------
-  // Filesystem Initialization and Data File Creation
-  //----------------------------------------------------------------------------
-  
-  // CSV header defining all telemetry fields
-  String data_header = "TEAM_ID,millis,count,altp,temp,umi,p,gp,gr,gy,ap,ar,ay,hora,data,alt,lat,lon,sat,pqd";
-  
-  // Mount filesystem and create data file with header
-  // Critical operation - system will restart on failure
-  if (!(setupLittleFS() && writeFile(file_dir, data_header)))
-  {
-    Serial.println("Filesystem error!");
-    buzzSignal("Alert");    // 5 rapid beeps to indicate error
-    delay(3000);            // Allow time to read error message
-    ESP.restart();          // Restart system to retry initialization
+  if (!initOk) {
+    // Safe-hold: do NOT reboot in a loop (would lose state in flight and
+    // hides the error). Print clearly, flush, and blink the buzzer as alarm.
+    Serial.println(initFail);
+    Serial.flush();
+    Serial.println("Halting — check wiring/sensors. Buzzer alarm active.");
+    Serial.flush();
+    for (;;) {
+      // Alarm tone at the piezo resonance — a passive piezo needs a square
+      // wave (digitalWrite DC is silent). Same frequency as the normal Beep.
+      tone(BUZZER_PIN, BUZZER_TONE_HZ, 400);
+      vTaskDelay(pdMS_TO_TICKS(500));
+    }
   }
+}
 
-  //----------------------------------------------------------------------------
-  // WiFi Access Point and Web Server Initialization
-  //----------------------------------------------------------------------------
-  
-  setupServer();  // Create WiFi AP and start web server for data access
+void loop() {
+  vTaskDelay(portMAX_DELAY);
 
-  //----------------------------------------------------------------------------
-  // Sensor and Communication Module Initialization
-  //----------------------------------------------------------------------------
-  
-  // Initialize all sensors and LoRa radio
-  // Non-critical - system continues if initialization fails
-  if (!(setupBMP() && setupMPU() && setupLoRa()))
-  {
-    printBoth("Module configuration error!");  // Log error to Serial and LoRa
-    buzzSignal("Alert");                       // Audio alert (5 beeps)
-    delay(3000);                               // Delay for error acknowledgment
-  }
-  else
-  {
-    printBoth("All modules initialized successfully!");  // Success message
-    buzzSignal("Success");                                // Audio confirmation (3 beeps)
-  }
 }
 
 //==============================================================================
@@ -167,75 +130,12 @@ void setup()
 /**
  * @brief Main flight computer control loop
  * 
- * This function runs continuously after setup() completes. It performs
- * time-based sensor sampling, data logging, and parachute deployment logic
- * at regular intervals defined by INTERVAL (default: 200ms = 5Hz).
+ * Intentionally empty: all real-time work happens in the FreeRTOS tasks
+ * created by the init functions (FlightControl @50Hz, Telemetry @5Hz,
+ * Logger @5Hz). The loop blocks forever on portMAX_DELAY so the Arduino
+ * framework's loop() does not spin.
  * 
- * Operations performed each cycle:
- * 1. Check if logging interval has elapsed (200ms)
- * 2. Read current altitude from BMP280 sensor
- * 3. Calculate vertical velocity from altitude change
- * 4. Log telemetry data (all sensors + timestamp + parachute status)
- * 5. Update highest altitude reached (for apogee detection)
- * 6. Evaluate parachute deployment conditions
- * 7. Update timestamp for next cycle
- * 
- * Parachute deployment logic (see parachute_module.h for details):
- * - Must be descending from apogee (altitude drop threshold)
- * - AND either: altitude below threshold OR descent velocity exceeds threshold
- * - Once deployed, parachute remains deployed (no retraction)
- * 
- * @note The web server runs asynchronously and doesn't need to be called here
- * @note GPS updates happen automatically via hardware serial interrupts
- * @note Loop frequency is controlled by INTERVAL constant in config.h
- * 
- * @see loop() is called repeatedly by Arduino framework
- * @see INTERVAL is defined in config.h (default: 200ms)
- * @see handleParachute() in parachute_module.h for deployment logic
+ * Parachute deployment (safety-critical) is decided by FlightStateMachine
+ * on apogee detection (Option A) and actuated by taskFlightControl — not
+ * here.
  */
-void loop()
-{
-  //----------------------------------------------------------------------------
-  // Time-Based Execution Control
-  //----------------------------------------------------------------------------
-  
-  unsigned long current_millis = millis();  // Get current time in milliseconds
-  
-  // Execute data logging and control logic at fixed interval (200ms)
-  if (current_millis - previous_millis >= INTERVAL)
-  {
-    //--------------------------------------------------------------------------
-    // Sensor Reading and Calculation
-    //--------------------------------------------------------------------------
-    
-    // Read current altitude from pressure sensor
-    float altitude = BMP.readAltitude(base_pressure);
-    
-    // Calculate vertical velocity (m/s) from altitude change over time
-    // Positive = ascending, Negative = descending
-    float velocity = (altitude - previous_altitude) / ((current_millis - previous_millis) / 1000.0);
-    
-    //--------------------------------------------------------------------------
-    // Data Logging and Telemetry
-    //--------------------------------------------------------------------------
-    
-    // Log complete telemetry packet to Serial, LoRa, and filesystem
-    logData(current_millis, parachute_deployed);
-    
-    //--------------------------------------------------------------------------
-    // Flight State Management
-    //--------------------------------------------------------------------------
-    
-    // Update maximum altitude reached (for apogee detection)
-    checkHighest(altitude);
-    
-    // Evaluate parachute deployment conditions and deploy if criteria met
-    handleParachute(altitude, velocity);
-    
-    //--------------------------------------------------------------------------
-    // Timestamp Update for Next Cycle
-    //--------------------------------------------------------------------------
-    
-    previous_millis = current_millis;  // Update timestamp for next interval
-  }
-}

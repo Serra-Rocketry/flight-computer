@@ -15,6 +15,7 @@ build/
 .piolibdeps
 .clang_complete
 .gcc-flags.json
+platformio.ini
 
 # Python
 __pycache__/
@@ -94,3 +95,7 @@ package-lock.json
 .env
 secrets.h
 credentials.h
+.opencode/
+
+# KiCad editor backups (kicad autosave plugin)
+hardware/**/.history/

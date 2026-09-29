@@ -3,16 +3,16 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # file = "Open csv file/dados_simulados.csv"
-file = "Open csv file/13_30_11-Dados.csv"
+file = "extras/FSM_tester/dados_filtrados.csv"
 # file = "Open csv file/dados_filtrados.csv"
 
 df = pd.read_csv(file)
 # from "# Time (s), Z (m), Ax (m/s²), Ay (m/s²), Az (m/s²)" to "millis,altp,ax,ay,az"
 
-if file == "Open csv file/dados_simulados.csv": 
+if file == "extras/FSM_tester/dados_simulados.csv": 
     df["altp"] = df["altp"] - df["altp"].iloc[0]   # Convert to altitude above ground level
 
-if file == "Open csv file/13_30_11-Dados.csv":
+if file == "extras/FSM_tester/13_30_11-Dados.csv":
     df["millis"] = df["millis"] / 1000.0  # Convert milliseconds to seconds
 
 def detect_motor_burnout(_pressure, height, state_vector, u_dot):
@@ -177,14 +177,14 @@ def smooth(value, prev_value, alpha):
 for i, row in df.iterrows():
     height = float(row["altp"])
     millis = float(row["millis"])
-    # height = smooth(height, df.loc[i - 1, "altp"] if i > 0 else None, alpha=0.2)
+    height = smooth(height, df.loc[i - 1, "altp"] if i > 0 else None, alpha=0.2)
 
     ax = float(row["ax"])
     ay = float(row["ay"])
     az = float(row["az"])
-    # ax = smooth(ax, df.loc[i - 1, "ax"] if i > 0 else None, alpha=0.2)
-    # ay = smooth(ay, df.loc[i - 1, "ay"] if i > 0 else None, alpha=0.2)
-    # az = smooth(az, df.loc[i - 1, "az"] if i > 0 else None, alpha=0.2)
+    ax = smooth(ax, df.loc[i - 1, "ax"] if i > 0 else None, alpha=0.2)
+    ay = smooth(ay, df.loc[i - 1, "ay"] if i > 0 else None, alpha=0.2)
+    az = smooth(az, df.loc[i - 1, "az"] if i > 0 else None, alpha=0.2)
 
     # Estimate vertical velocity
     if i == 0:
@@ -235,20 +235,4 @@ for i, row in df.iterrows():
     #         )
     #     parachute = True
 
-# Plot
-plt.figure(figsize=(12, 6))
-plt.scatter(df["millis"], df["altp"], label="Altura Barométrica", color="black", s=5)
 
-events = df[df["event"] != ""]
-for _, row in events.iterrows():
-    t = row["millis"]
-    e = row["event"]
-    plt.axvline(t, linestyle="--")
-    plt.text(t, row["altp"], e, rotation=0, verticalalignment="bottom")
-
-plt.xlabel("Tempo (s)")
-plt.ylabel("Altitude (m)")
-plt.title("Flight profile with detected events")
-plt.grid(True)
-plt.legend()
-plt.show()

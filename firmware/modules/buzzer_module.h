@@ -7,7 +7,7 @@
  * The buzzer provides critical feedback during operation, especially when
  * visual monitoring is not possible.
  * 
- * @author Team #100 Avionics
+ * @author #11 Avionics
  * @date 2024
  */
 
@@ -33,19 +33,22 @@
  * - "Success": 3 beeps (100ms each, 200ms interval) - indicates successful initialization
  * - "Activated": Single long beep (500ms) - indicates parachute deployment
  * - "Beep": Short beep (50ms) - standard operation confirmation
- * 
+ *
  * @param signal Signal type string: "Alert", "Success", "Activated", or "Beep"
- * 
- * @note All signals use 500Hz frequency for consistency
+ *
+ * @note Frequency 2700 Hz: passive piezo resonance found in bench sweep
+ *       (test/bench `z`, 2026-08-27) — loudest point in the 2.0-4.0 kHz scan.
+ * @note tone() uses the ESP32 LEDC peripheral (core 3.x maps it to ledcWriteTone);
+ *       a passive piezo REQUIRES the square wave — DC via digitalWrite makes
+ *       no sound.
  * @note The function blocks during tone generation due to delay() calls
  * @warning Invalid signal types will print an error message to Serial
- * 
- * @see buzzSignal() is called by telemetry_module.h for operation feedback
- * @see BUZZER_PIN is defined in config.h
+ *
+ * @see BUZZER_PIN, BUZZER_TONE_HZ in config.h
  */
-void buzzSignal(String signal)
+inline void buzzSignal(String signal)
 {
-  int frequency = 500;   // Tone frequency in Hz (500Hz chosen for audibility)
+  const int frequency = BUZZER_TONE_HZ;  // 2700 Hz passive-piezo resonance
   
   if (signal == "Alert") // Error signal during initialization
   {
@@ -81,6 +84,28 @@ void buzzSignal(String signal)
     // Invalid signal type - log error for debugging
     Serial.println("Invalid signal!");
   }
+}
+
+//==============================================================================
+// RECOVERY BEACON (non-blocking, driven by TelemetryTask at 5 Hz)
+//==============================================================================
+
+// Beacon cadence: short beep every 1 s in flight/idle; LONG beep every 1 s
+// once LANDED so the rocket is findable in tall grass after touchdown.
+constexpr uint32_t BUZZER_BEACON_PERIOD_MS = 1000;  // 1 Hz
+constexpr uint32_t BUZZER_BEACON_SHORT_MS  = 50;
+constexpr uint32_t BUZZER_BEACON_LANDED_MS = 500;
+
+/**
+ * @brief Emit one recovery-beacon tone (non-blocking tone())
+ * @param landed true -> long tone (500 ms); false -> short beep (50 ms)
+ * @note Uses tone() WITHOUT delay(): safe to call from a FreeRTOS task.
+ *       Caller owns the 1 Hz pacing (millis()-based).
+ */
+inline void buzzRecoveryBeep(bool landed)
+{
+  tone(BUZZER_PIN, BUZZER_TONE_HZ,
+       landed ? BUZZER_BEACON_LANDED_MS : BUZZER_BEACON_SHORT_MS);
 }
 
 #endif // BUZZER_MODULE_H

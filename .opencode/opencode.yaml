@@ -1,0 +1,179 @@
+---
+# OpenCode Configuration for Flight Computer Project
+# This file configures skills and workflows for the project
+
+project:
+  name: Flight Computer
+  version: v2.0
+  team: Team #100 - Serra Rocketry
+  repository: flight-computer/
+  description: Safety-critical flight avionics system for high-powered rockets
+
+# Skill definitions
+skills:
+  - id: embedded-architect
+    name: Embedded Systems Architect
+    description: Senior Embedded Systems Architect specializing in real-time aerospace systems, FreeRTOS, and safety-critical firmware design
+    path: skills/embedded-architect/SKILL.md
+    priority: 1
+    tags:
+      - architecture
+      - freertos
+      - esp32
+      - safety-critical
+
+  - id: firmware-developer
+    name: Firmware Developer
+    description: Expert C/C++ firmware developer for ESP32 platforms, specialized in sensor integration, embedded protocols, and Arduino framework
+    path: skills/firmware-developer/SKILL.md
+    priority: 2
+    tags:
+      - firmware
+      - c
+      - cpp
+      - esp32
+      - sensors
+
+  - id: fsm-specialist
+    name: Flight State Machine Specialist
+    description: Expert in flight dynamics, state machine design, and validation using real-world telemetry data
+    path: skills/fsm-specialist/SKILL.md
+    priority: 2
+    tags:
+      - fsm
+      - flight-dynamics
+      - validation
+      - telemetry
+
+  - id: code-reviewer
+    name: Code Reviewer (Safety & Quality)
+    description: Senior code reviewer specializing in safety-critical embedded systems, focusing on reliability, fault tolerance, and best practices
+    path: skills/code-reviewer/SKILL.md
+    priority: 3
+    tags:
+      - review
+      - safety
+      - quality-assurance
+      - best-practices
+
+  - id: test-engineer
+    name: Test Engineer
+    description: Test engineer specializing in embedded systems validation, hardware-in-the-loop testing, and simulation-based verification
+    path: skills/test-engineer/SKILL.md
+    priority: 2
+    tags:
+      - testing
+      - validation
+      - hil
+      - simulation
+      - python
+
+  - id: documentation-specialist
+    name: Documentation Specialist
+    description: Technical writer and documentation specialist for embedded systems and aerospace projects
+    path: skills/documentation-specialist/SKILL.md
+    priority: 3
+    tags:
+      - documentation
+      - technical-writing
+      - doxygen
+      - adr
+
+# Workflow definitions
+workflows:
+  new-feature:
+    name: New Feature Implementation
+    description: Complete workflow for implementing a new feature
+    steps:
+      - skill: embedded-architect
+        action: plan architecture
+        description: Design architecture and task structure
+      - skill: firmware-developer
+        action: implement code
+        description: Implement the feature code
+      - skill: fsm-specialist
+        action: validate fsm
+        description: Validate FSM integration (if applicable)
+      - skill: test-engineer
+        action: create tests
+        description: Create unit tests and validation tests
+      - skill: documentation-specialist
+        action: document
+        description: Document the feature
+      - skill: code-reviewer
+        action: review code
+        description: Multi-layer code review
+      - skill: embedded-architect
+        action: architecture review
+        description: Final architecture validation
+
+  bug-fix:
+    name: Bug Fix (Fast Track)
+    description: Quick workflow for bug fixes
+    steps:
+      - skill: firmware-developer
+        action: identify bug
+        description: Diagnose and fix the bug
+      - skill: test-engineer
+        action: validate fix
+        description: Validate the fix
+      - skill: code-reviewer
+        action: review
+        description: Code review
+
+  refactoring:
+    name: Architectural Refactoring
+    description: Workflow for significant refactoring
+    steps:
+      - skill: embedded-architect
+        action: create adr
+        description: Create Architecture Decision Record
+      - skill: firmware-developer
+        action: refactor code
+        description: Implement refactoring
+      - skill: test-engineer
+        action: test refactoring
+        description: Comprehensive testing
+      - skill: documentation-specialist
+        action: update docs
+        description: Update documentation
+      - skill: code-reviewer
+        action: multi-layer review
+        description: Complete code review
+
+# Technology stack
+technologies:
+  hardware:
+    - ESP32-C3 SuperMini (current)
+    - ESP32-S3 (v2.0 target)
+  language:
+    - C
+    - C++
+  framework:
+    - Arduino
+    - ESP-IDF
+  rtos: FreeRTOS
+  sensors:
+    - BMP585
+    - LSM6DS3
+    - GPS NEO-8M
+    - LoRa RFM95W
+  testing:
+    - Unity
+    - Python
+    - Hardware-in-the-loop
+
+# Key documentation files
+documentation:
+  agents: "../AGENTS.md"
+  contributing: "../CONTRIBUTING.md"
+  refactoring_plan: "../firmware/REFACTORING_PLAN.md"
+  software_architecture: "../docs/software.md"
+  hardware_specs: "../docs/hardware.md"
+  fsm_explanation: "../extras/FSM_tester/explicacao.md"
+  team: "./TEAM.md"
+
+# Configuration version
+version: "1.0"
+last_updated: "2026-04-06"
+status: active

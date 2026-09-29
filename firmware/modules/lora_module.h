@@ -15,9 +15,9 @@
  * - Remote monitoring and tracking
  * 
  * Communication: SPI bus
- * Frequency: 868 MHz (Europe) or 915 MHz (Americas) - configured in config.h
+ * Frequency: 915 MHz (Americas/Brazil) - configured in config.h (matches receiver-lora)
  * 
- * @author Team #100
+ * @author #11
  * @date 2026
  */
 
@@ -25,8 +25,29 @@
 #define LORA_MODULE_H
 
 #include <Arduino.h>
+#include <SPI.h>
 #include <LoRa.h>
 #include "config.h"
+
+// Set to 1 to enable verbose LoRa transmission logs.
+#ifndef LORA_DEBUG_LOGS
+#define LORA_DEBUG_LOGS 0
+#endif
+
+//==============================================================================
+// AVAILABILITY FLAG
+//==============================================================================
+
+// True only after setupLoRa() succeeded. Guards every transmission so
+// callers (telemetry, error logging) can send unconditionally without
+// touching an uninitialized radio.
+inline bool& loraAvailabilityRef() {
+  static bool loraAvailable = false;
+  return loraAvailable;
+}
+
+inline void markLoRaAvailable(bool available) { loraAvailabilityRef() = available; }
+inline bool isLoRaAvailable() { return loraAvailabilityRef(); }
 
 //==============================================================================
 // INITIALIZATION FUNCTIONS
@@ -50,8 +71,13 @@
  * @warning Operating on wrong frequency may violate local regulations
  * @see config.h for pin and frequency configuration
  */
-bool setupLoRa()
+inline bool setupLoRa()
 {
+  // Remap the SPI bus to the RFM95W wiring (same as receiver-lora firmware).
+  // The LoRa 0.8.0 lib uses the global SPI object, so we must call SPI.begin()
+  // with the custom pins BEFORE LoRa.setPins().
+  SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, SS_LORA);
+
   // Configure SPI pins for LoRa module
   LoRa.setPins(SS_LORA, RST_LORA, DIO0_LORA);
   
@@ -59,13 +85,24 @@ bool setupLoRa()
   if (!LoRa.begin(LORA_FREQ))
   {
     Serial.println("LoRa initialization failed.");
+    markLoRaAvailable(false);
     return false;
   }
   
   // Set synchronization word (network ID)
   // Only devices with same sync word can communicate
   LoRa.setSyncWord(SYNC_WORD);
-  
+
+  // Explicitly match the receiver (recovery-webui/components/receiver-lora)
+  // so the link connects. These equal the LoRa.h defaults, but we set them
+  // explicitly to avoid relying on library defaults.
+  LoRa.setSpreadingFactor(LORA_SF);
+  LoRa.setSignalBandwidth(LORA_BW);
+  LoRa.setCodingRate4(LORA_CR);
+  LoRa.setTxPower(LORA_TX_POWER);
+  LoRa.enableCrc();
+
+  markLoRaAvailable(true);
   return true;
 }
 
@@ -87,10 +124,17 @@ bool setupLoRa()
  * @note Maximum packet size depends on LoRa configuration (typically 255 bytes)
  * @note Transmission time increases with message length
  * @note Function blocks until transmission completes
- * @see printBoth() in telemetry_module.h for combined Serial+LoRa output
+ * @note TelemetryTask builds the message with snprintf and transmits via
+ *       sendLoRa() + Serial (telemetry_module.h was removed in v2.0)
  */
-void sendLoRa(const String &message)
+inline void sendLoRa(const String &message)
 {
+  // No-op if the radio never initialized (setupLoRa() failed or was skipped)
+  if (!isLoRaAvailable())
+  {
+    return;
+  }
+
   // Start a new LoRa packet
   LoRa.beginPacket();
   
@@ -100,8 +144,9 @@ void sendLoRa(const String &message)
   // Finalize and transmit packet
   if (LoRa.endPacket())
   {
-    // Transmission successful
+    #if LORA_DEBUG_LOGS
     Serial.println("LoRa message sent.");
+    #endif
   }
   else
   {

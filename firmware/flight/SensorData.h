@@ -1,43 +1,43 @@
 /**
  * @file SensorData.h
- * @brief Estruturas de dados compartilhadas entre tasks
- * 
- * Define as estruturas de dados usadas para comunicacao entre tasks
+ * @brief Shared data structures between FreeRTOS tasks
+ *
+ * Defines data structures used for inter-task communication
  * via FreeRTOS queues:
- * - SensorData: Dados dos sensores (BMP585, LSM6DS3, GPS)
- * - LogMessage: Mensagens de log para a task logger
- * 
- * @author Team #100 - Serra Rocketry
+ * - SensorData: Sensor data (BMP585, LSM6DS3, GPS)
+ * - LogMessage: Log messages for logger task
+ *
+ * @author #11 - Serra Rocketry
  * @date 2026-04-06
  * @version 1.0.0
- * 
- * @see firmware/REFACTORING_PLAN.md linhas 243-288 - Estruturas de Dados
- * @see firmware/REFACTORING_PLAN.md linhas 113-153 - FSM - Estados de Voo
- * @see firmware/flight/FlightControlTask.h - Task que popula SensorData
- * @see firmware/flight/TelemetryTask.h - Task que consome SensorData via queue
+ *
+ * @see firmware/REFACTORING_PLAN.md lines 243-288 - Data Structures
+ * @see firmware/REFACTORING_PLAN.md lines 113-153 - FSM Flight States
+ * @see firmware/flight/FlightControlTask.h - Task that populates SensorData
+ * @see firmware/flight/TelemetryTask.h - Task that consumes SensorData via queue
  */
 
 #ifndef SENSOR_DATA_H
 #define SENSOR_DATA_H
 
 #include <Arduino.h>
-#include <cstring>  // Para memset()
+#include <cstring>  // For memset()
 
 /**
- * @brief Estados da maquina de estados de voo
- * 
- * Máquina de estados simplificada com 4 estados principais.
- * Estados internos (LIFTOFF, BURNOUT, APOGEE, FREEFALL) são rastreados
- * via flags booleanas para melhor diagnóstico sem aumentar complexidade.
- * 
- * Validado com dados reais em extras/FSM_tester/13_30_11-Dados.csv
- * Referência: test/FSM/FSM.ino (implementação em 4 estados)
+ * @brief Flight state machine states
+ *
+ * Simplified 4-state machine.
+ * Internal states (LIFTOFF, BURNOUT, APOGEE, FREEFALL) tracked
+ * via boolean flags for better diagnostics without added complexity.
+ *
+ * Validated with real data in extras/FSM_tester/13_30_11-Dados.csv
+ * Reference: test/FSM/FSM.ino (4-state implementation)
  */
 enum FlightState {
-  IDLE = 0,      ///< Pré-lançamento, aguardando no solo
-  ASCENT = 1,    ///< Subida (LIFTOFF → BURNOUT → APOGEE)
-  DESCENT = 2,   ///< Descida (FREEFALL → PARACHUTE → LANDING)
-  LANDED = 3     ///< Pouso detectado, fim do voo
+  IDLE = 0,      ///< Pre-launch, waiting on ground
+  ASCENT = 1,    ///< Climbing (LIFTOFF → BURNOUT → APOGEE)
+  DESCENT = 2,   ///< Descent (FREEFALL → PARACHUTE → LANDING)
+  LANDED = 3     ///< Landing detected, end of flight
 };
 
 /**
@@ -57,61 +57,61 @@ inline const char* getFlightStateName(FlightState state) {
 }
 
 /**
- * @brief Estrutura de dados dos sensores
- * 
- * Contém leituras de todos os sensores (BMP585, LSM6DS3, GPS) e
- * estado da maquina de estados. Enviada pela FlightControlTask
- * para a TelemetryTask via sensorDataQueue.
- * 
- * Tamanho real: **96 bytes** (~64 bytes estrutura + 32 bytes alignment)
+ * @brief Sensor data structure
+ *
+ * Contains readings from all sensors (BMP585, LSM6DS3, GPS) and
+ * flight state machine state. Sent by FlightControlTask
+ * to TelemetryTask via sensorDataQueue.
+ *
+ * Actual size: **96 bytes** (~64 bytes struct + 32 bytes alignment)
  * Queue: 25 slots × 96 bytes = ~2.4KB RAM
- * 
- * @note O tamanho é maior que o estimado (64 bytes) devido a:
+ *
+ * @note Size is larger than estimated (64 bytes) due to:
  *       - struct alignment (padding)
- *       - doubles para latitude/longitude (8 bytes cada)
- *       - Ainda assim, dentro do orçamento RAM (409 KB disponível)
- * 
- * @note Estado FlightState usa apenas 4 valores (IDLE, ASCENT, DESCENT, LANDED).
- *       Estados internos (LIFTOFF, BURNOUT, APOGEE, FREEFALL) são rastreados
- *       como flags separadas em FlightControlTask para diagnóstico.
- *       Ver: test/FSM/FSM.ino para implementação de referência.
+ *       - doubles for latitude/longitude (8 bytes each)
+ *       - Still within RAM budget (409 KB available)
+ *
+ * @note FlightState uses only 4 values (IDLE, ASCENT, DESCENT, LANDED).
+ *       Internal states (LIFTOFF, BURNOUT, APOGEE, FREEFALL) tracked
+ *       as separate flags in FlightControlTask for diagnostics.
+ *       See: test/FSM/FSM.ino for reference implementation.
  */
 struct SensorData {
   // === TIMESTAMP ===
-  unsigned long timestamp;    ///< Timestamp em millisegundos
-  uint16_t packet_count;      ///< Numero sequencial do pacote
-  
+  unsigned long timestamp;    ///< Timestamp in milliseconds
+  uint16_t packet_count;      ///< Sequential packet number
+
   // === BMP585 BAROMETER ===
-  float altitude;             ///< Altitude em metros (relativa ao launchpad)
-  float pressure;             ///< Pressao em hPa
-  float temperature;          ///< Temperatura em °C
-  float verticalVelocity;     ///< Velocidade vertical (Vz) em m/s
-  float maxAltitude;          ///< Altitude maxima atingida em metros
-  
+  float altitude;             ///< Altitude in meters (relative to launchpad)
+  float pressure;             ///< Pressure in hPa
+  float temperature;          ///< Temperature in °C
+  float verticalVelocity;     ///< Vertical velocity (Vz) in m/s
+  float maxAltitude;          ///< Maximum altitude reached in meters
+
   // === LSM6DS3 IMU ===
-  float accelX, accelY, accelZ;   ///< Aceleracao em m/s²
-  float gyroX, gyroY, gyroZ;      ///< Velocidade angular em °/s
-  float totalAccel;               ///< Magnitude da aceleracao total em m/s²
-  
+  float accelX, accelY, accelZ;   ///< Acceleration in m/s²
+  float gyroX, gyroY, gyroZ;      ///< Angular velocity in rad/s
+  float totalAccel;               ///< Total acceleration magnitude in m/s²
+
   // === GPS (OPTIONAL) ===
-  double latitude, longitude;     ///< Coordenadas GPS
-  float gpsAltitude;              ///< Altitude do GPS em metros
-  uint8_t satellites;             ///< Numero de satelites rastreados
-  bool gps_valid;                 ///< True se GPS tem fix valido
-  
+  double latitude, longitude;     ///< GPS coordinates
+  float gpsAltitude;              ///< GPS altitude in meters
+  uint8_t satellites;             ///< Number of tracked satellites
+  bool gps_valid;                 ///< True if GPS has valid fix
+
   // === FSM STATE ===
-  FlightState state;              ///< Estado atual do voo
-  bool parachute_deployed;        ///< True se paraquedas foi desdobrado
-  
+  FlightState state;              ///< Current flight state
+  bool parachute_deployed;        ///< True if parachute deployed
+
   /**
-   * @brief Construtor com inicializacao segura de todos os campos
-   * 
-   * CRÍTICO: Todos os campos são inicializados para evitar:
-   * - Leitura de valores não inicializados (undefined behavior)
-   * - NaN propagação na FSM
-   * - Decisões de desdobramento de paraquedas baseadas em lixo de memória
-   * 
-   * @note Estado padrão é IDLE (espera por liftoff)
+   * @brief Constructor with safe initialization of all fields
+   *
+   * CRITICAL: All fields are initialized to avoid:
+   * - Reading uninitialized values (undefined behavior)
+   * - NaN propagation in FSM
+   * - Parachute deployment decisions based on garbage data
+   *
+   * @note Default state is IDLE (waits for liftoff)
    */
   SensorData()
       : timestamp(0), packet_count(0),
@@ -119,53 +119,72 @@ struct SensorData {
         altitude(0.0f), pressure(1013.25f), temperature(0.0f),
         verticalVelocity(0.0f), maxAltitude(0.0f),
         // LSM6DS3
-        accelX(0.0f), accelY(0.0f), accelZ(9.81f),  // accelZ = gravidade
+        accelX(0.0f), accelY(0.0f), accelZ(9.81f),  // accelZ = gravity
         gyroX(0.0f), gyroY(0.0f), gyroZ(0.0f),
-        totalAccel(9.81f),  // Inicial = gravidade pura
+        totalAccel(9.81f),  // Initial = pure gravity
         // GPS
         latitude(0.0), longitude(0.0), gpsAltitude(0.0f), satellites(0),
         gps_valid(false),
-        // FSM (4 estados: IDLE, ASCENT, DESCENT, LANDED)
+        // FSM (4 states: IDLE, ASCENT, DESCENT, LANDED)
         state(IDLE), parachute_deployed(false) {}
 };
 
 /**
- * @brief Estrutura de mensagem de log
- * 
- * Enviada por qualquer task para a LoggerTask via logQueue.
- * Permite logging thread-safe com nivels de severidade.
- * 
- * Tamanho real: **144 bytes** (~140 bytes estimado)
+ * @brief Identifiers for tasks that send log messages via LoggerTask
+ * @see LogMessage::taskId
+ */
+enum TaskId : uint8_t {
+  TASK_ID_FLIGHT_CONTROL = 1,
+  TASK_ID_TELEMETRY      = 2,
+  TASK_ID_LOGGER         = 3,
+};
+
+/**
+ * @brief Log severity levels
+ * @see getLogLevelName()
+ */
+constexpr uint8_t LOG_LEVEL_DEBUG = 0;
+constexpr uint8_t LOG_LEVEL_INFO  = 1;
+constexpr uint8_t LOG_LEVEL_WARN  = 2;
+constexpr uint8_t LOG_LEVEL_ERROR = 3;
+
+/**
+ * @brief Log message structure
+ *
+ * Sent by any task to LoggerTask via logQueue.
+ * Enables thread-safe logging with severity levels.
+ *
+ * Actual size: **144 bytes** (~140 bytes estimated)
  * Queue: 50 slots × 144 bytes = ~7.2KB RAM
- * 
- * @note Buffer de mensagem é inicializado com '\0' para evitar
- *       leitura de dados não inicializados ou overflow em strings
+ *
+ * @note Message buffer initialized with '\0' to avoid
+ *       reading uninitialized data or string overflow
  */
 struct LogMessage {
-  char message[128];          ///< Mensagem de log (max 127 chars + null terminator)
-  unsigned long timestamp;    ///< Timestamp em millisegundos
-  uint8_t taskId;             ///< ID da task que enviou (1=FSM, 2=Telemetry, 3=Logger)
-  uint8_t level;              ///< Nivel de severidade (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR)
-  
+  char message[128];          ///< Log message (max 127 chars + null terminator)
+  unsigned long timestamp;    ///< Timestamp in milliseconds
+  uint8_t taskId;             ///< ID of sending task (see TaskId enum above)
+  uint8_t level;              ///< Severity level (see LOG_LEVEL_* constants above)
+
   /**
-   * @brief Construtor com inicializacao segura
-   * 
-   * CRÍTICO: Buffer é inicializado com '\0' para evitar:
+   * @brief Constructor with safe initialization
+   *
+   * CRITICAL: Buffer initialized with '\0' to avoid:
    * - String buffer overflow
-   * - Leitura de dados indefinidos
-   * - Caracteres de lixo nos logs
+   * - Reading undefined data
+   * - Garbage characters in logs
    */
   LogMessage()
       : timestamp(0), taskId(0), level(0) {
-    memset(message, 0, sizeof(message));  // Inicializar buffer com zeros
+    memset(message, 0, sizeof(message));  // Initialize buffer with zeros
   }
 };
 
 /**
- * @brief Converte nivel de log para string
- * 
- * @param level Nivel de log
- * @return const char* Nome do nivel
+ * @brief Converts log level to string
+ *
+ * @param level Log level
+ * @return const char* Level name
  */
 inline const char* getLogLevelName(uint8_t level) {
   switch (level) {
