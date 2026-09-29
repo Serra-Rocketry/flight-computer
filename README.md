@@ -1,63 +1,104 @@
-# Avionics - Onboard Computer
+# Avionics — Onboard Computer
 
-![Version](https://img.shields.io/badge/tag-v1.0.0--LASC2025-orange)
-![Date](https://img.shields.io/badge/released-Jan%2027%202026-lightgrey)
-![Status](https://img.shields.io/badge/status-V2%20In%20Development-yellow)
-
-> 🚧 **Development Notice**
+> **v2.0 Flight Computer** for Serra Rocketry (#11 - Dedalo).
 >
-> The V1 flight computer architecture has reached **End of Life (EOL)** and is preserved for historical reference.
->  
-> Active development is ongoing for **V2**, featuring a new architecture based on **FreeRTOS and Finite State Machines**, on the `dev-2026` branch.
-
-Onboard computer (OBC) for the SR21000 rocket of the Serra Rocketry rocket modeling team. An embedded system that monitors altitude, velocity and GPS position, and autonomously controls parachute deployment during flight.
+> OOP + FreeRTOS + 4-state FSM, validated against real flight data.
+> Built for the ESP32-S3.
 
 ## Overview
 
-- Real-time monitoring of altitude, velocity and GPS position
-- LoRa communication with the operational base
-- Telemetry storage in CSV format
-- Automatic servo control for parachute opening
-- Web interface for accessing stored data
+Real-time avionics firmware for a sounding rocket. Runs on an **ESP32-S3**
+under FreeRTOS, reading barometric (BMP585), inertial (LSM6DS3) and GPS
+(NEO-8M) sensors to detect flight events and deploy the parachute at apogee.
 
-## Directory Structure
+- **Flight state machine**: IDLE → ASCENT → DESCENT → LANDED, with sub-event
+  flags (liftoff, burnout, apogee, freefall, parachute)
+- **Parachute deployment**: Apogee + stable negative Vz, 3-cycle
+  confirmation, 50 m ground guard — validated against RocketPy + real flight data points
+- **Telemetry**: 22-field CSV over LoRa @ 915 MHz to ground receiver
+- **Logging**: SD card (primary) with LittleFS flash fallback
+- **Safety**: NaN/Inf rejection, sensor fallback, TWDT watchdog, multi-condition parachute logic
+
+## Architecture
 
 ```
-firmware/       Main onboard computer code
-test/           Unit tests of individual components
-extras/         Support code and experimentation
-hardware/       Schematics, PCB and component list
-docs/           Detailed documentation (software and hardware)
+firmware/
+├── firmware.ino          # setup()/loop() — orchestrates init*Task()
+├── config.h              # Pins, thresholds, radio parameters
+├── sensors/              # ISensor implementations (BMP585, LSM6DS3, GPS)
+├── flight/               # FreeRTOS tasks + FlightStateMachine
+├── modules/              # Actuators/peripherals (servo, LoRa, buzzer, FS)
+└── docs/architecture.md  # v2.0 architecture (consolidated from REFACTORING_PLAN.md)
 ```
+
+Two FreeRTOS cores with queue-based communication:
+
+| Core  | Task                | Priority | Rate  | Responsibility                        |
+| ----- | ------------------- | -------- | ----- | ------------------------------------- |
+| **1** | `FlightControlTask` | 20       | 5 Hz  | Sensors + FSM + parachute + watchdog  |
+| **0** | `TelemetryTask`     | 5        | 5 Hz  | GPS enrichment + LoRa + file + Serial |
+| **0** | `LoggerTask`        | 1        | —     | Async log queue with level filter     |
+
+## Quick Start
+
+### Arduino IDE (recommended)
+
+1. Board: **ESP32-S3 Dev Module** (enable "USB CDC On Boot")
+2. Open `firmware/firmware.ino`
+3. Install libraries: `Adafruit BMP5xx`, `Adafruit LSM6DS3`, `TinyGPS++`,
+   `ESP32Servo`, `LoRa by Sandeep Mistry`
+4. Compile (`Ctrl+R`) and upload (`Ctrl+U`)
+
+### Validate without hardware
+
+```bash
+python3 extras/FSM_tester/FSM_Tester.py       # FSM against 1,873 real data points
+python3 extras/validate_telemetry_format.py    # 22-field telemetry alignment
+```
+
+## Key Specifications
+
+| Parameter          | Value                                    |
+| ------------------ | ---------------------------------------- |
+| FlightControl rate | 5 Hz (200 ms)                            |
+| Telemetry rate     | 5 Hz (200 ms)                            |
+| Parachute confirm  | 3 consecutive Vz < −2 m/s                |
+| Ground guard       | 50 m AGL                                 |
+| LoRa frequency     | 915 MHz (Brazil/Americas ISM)            |
+| LoRa config        | SF7, BW 125 kHz, CR 4/5, CRC on, +17 dBm |
+| Storage            | SD card (SPI) → LittleFS fallback        |
+| Sensor queue       | 25 slots (∼2.4 KB)                       |
+| Log queue          | 50 slots (∼7.2 KB)                       |
 
 ## Documentation
 
-- **[software.md](docs/software.md)** - Firmware details, functions and libraries
-- **[hardware.md](docs/hardware.md)** - Components, pinout and specifications
-- **[flowchart.md](docs/flowchart.md)** - System execution flowchart
+- [`docs/software.md`](docs/software.md) — Software architecture
+|- [`docs/hardware.md`](docs/hardware.md) — Hardware specs, pinout, BOM
+|- [`docs/architecture.md`](docs/architecture.md) — Architecture spec (consolidated)
+|- [`docs/modules.md`](docs/modules.md) — Module reference
+|- [`docs/flowchart.md`](docs/flowchart.md) — FreeRTOS + FSM flow diagram
+- [`AGENTS.md`](AGENTS.md) — AI agent coding guide
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — How to contribute
 
-## Getting Started
+## Repository Layout
 
-> ⚠️ This section applies only to the V1 (LASC 2025) firmware.
->  
-> The V2 system uses a different architecture and toolchain.
+```
+firmware/   v2.0 firmware (OOP + FreeRTOS + FSM)
+test/       Hardware validation sketches (sensors, servo, FSM)
+docs/       software.md, hardware.md, telemetry-format.md, flowchart.md
+hardware/   KiCad schematic + PCB + BOM
+extras/     Scripts, FSM tester, format validator, emergency deploy
+```
 
-1. Open [firmware/firmware.ino](firmware/firmware.ino) in Arduino IDE
-2. Install required libraries
-3. Configure COM port and ESP32 board
-4. Upload to microcontroller
+## Status
 
-## Repository Structure
+All refactoring plan phases are **complete** — v2.0 is fully implemented and
+documented. See [`CHANGELOG.md`](CHANGELOG.md) for the full release history.
 
-- **`main`**  
-  Legacy V1 flight computer (LASC 2025) – frozen and released.
+## Team
 
-- **`dev-2026`**  
-  Active development branch for the V2 flight computer architecture.
-
-- **Releases / Tags**  
-  - `v1.0.0-LASC2025`: Final V1 flight firmware (SR21000 mission).
+Serra Rocketry — IPRJ/UERJ
 
 ## License
 
-Project by Serra Rocketry - Rocket Modeling Team at IPRJ/UERJ
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
