@@ -15,16 +15,16 @@ emergency backup board (`extras/emergency/`).
 
 ## Design Decisions
 
-| Aspect | Decision | Rationale |
-|--------|----------|-----------|
-| OOP | Selective | Only sensors that change became classes |
-| FSM | Enum/Switch | Simple, low overhead |
-| FreeRTOS | 3 Tasks | Separation: FSM (5 Hz) / Telemetry (5 Hz) / Logger |
-| Migration | Big Bang | Full refactor in one pass |
-| Tests | Hardware + Python | No C++ unit-test infra; FSM validated via Python port |
-| Queue sizes | 25 (sensor), 50 (log) | Covers worst case with margin |
-| Watchdog | 5s, armed inside FlightControlTask | Avoids TWDT armed with no task to reset it |
-| Logging | Queue-based + Serial filter | Verbose dev, filtered in production |
+| Aspect      | Decision                           | Rationale                                             |
+| ----------- | ---------------------------------- | ----------------------------------------------------- |
+| OOP         | Selective                          | Only sensors that change became classes               |
+| FSM         | Enum/Switch                        | Simple, low overhead                                  |
+| FreeRTOS    | 3 Tasks                            | Separation: FSM (5 Hz) / Telemetry (5 Hz) / Logger    |
+| Migration   | Big Bang                           | Full refactor in one pass                             |
+| Tests       | Hardware + Python                  | No C++ unit-test infra; FSM validated via Python port |
+| Queue sizes | 25 (sensor), 50 (log)              | Covers worst case with margin                         |
+| Watchdog    | 5s, armed inside FlightControlTask | Avoids TWDT armed with no task to reset it            |
+| Logging     | Queue-based + Serial filter        | Verbose dev, filtered in production                   |
 
 ## Architecture (post-5Hz fix)
 
@@ -61,11 +61,11 @@ firmware/
 
 ### FreeRTOS task layout
 
-| Core | Task | Priority | Rate | Responsibility |
-|------|------|----------|------|----------------|
-| 1 | `taskFlightControl` | 20 (HIGH) | **5 Hz** (200 ms) | Sensors + FSM + deploy + queue + TWDT |
-| 0 | `taskTelemetry` | 5 (LOW) | 5 Hz (200 ms) | GPS + queue drain + LoRa + storage + Serial |
-| 0 | `taskLogger` | 1 | event | Async log queue consumer |
+| Core | Task                | Priority  | Rate              | Responsibility                              |
+| ---- | ------------------- | --------- | ----------------- | ------------------------------------------- |
+| 1    | `taskFlightControl` | 20 (HIGH) | **5 Hz** (200 ms) | Sensors + FSM + deploy + queue + TWDT       |
+| 0    | `taskTelemetry`     | 5 (LOW)   | 5 Hz (200 ms)     | GPS + queue drain + LoRa + storage + Serial |
+| 0    | `taskLogger`        | 1         | event             | Async log queue consumer                    |
 
 Inter-task communication via queues only — no shared variables:
 
@@ -84,14 +84,14 @@ Inter-task communication via queues only — no shared variables:
 **Fix** (`d0865ee`, `c5dd591`): `FLIGHT_CONTROL_PERIOD_MS` 20 → 200 ms.
 All cycle-count constants rescaled to preserve the same **absolute times**:
 
-| Constant | 50 Hz (old) | 5 Hz (new) | Absolute time |
-|----------|------------|------------|---------------|
-| `FREEFALL_BACKSTOP_CYCLES` | 50 | 5 | 1.0 s |
-| `BARO_STALE_SUSTAIN_CYCLES` | 125 | 13 | 2.6 s |
-| `ARM_REZERO_SUSTAIN_CYCLES` | 150 | 15 | 3.0 s |
-| `BARO_GLITCH_SUSTAIN_CYCLES` | 50 | 5 | 1.0 s |
-| `LIFTOFF_ALT_CONFIRM_CYCLES` | 3 | 1 | 200 ms |
-| `PARACHUTE_CONFIRM_CYCLES` | 3 | 3 | 0.6 s (unchanged — time-based) |
+| Constant                     | 50 Hz (old) | 5 Hz (new) | Absolute time                  |
+| ---------------------------- | ----------- | ---------- | ------------------------------ |
+| `FREEFALL_BACKSTOP_CYCLES`   | 50          | 5          | 1.0 s                          |
+| `BARO_STALE_SUSTAIN_CYCLES`  | 125         | 13         | 2.6 s                          |
+| `ARM_REZERO_SUSTAIN_CYCLES`  | 150         | 15         | 3.0 s                          |
+| `BARO_GLITCH_SUSTAIN_CYCLES` | 50          | 5          | 1.0 s                          |
+| `LIFTOFF_ALT_CONFIRM_CYCLES` | 3           | 1          | 200 ms                         |
+| `PARACHUTE_CONFIRM_CYCLES`   | 3           | 3          | 0.6 s (unchanged — time-based) |
 
 `LIFTOFF_CONFIRM_MS` (100 ms) and `LIFTOFF_CONFIRM_MAX_GAP_MS` (60 → 200 ms)
 are per-time; `PARACHUTE_CONFIRM_CYCLES` is a count (3 = 600 ms at 5 Hz).
@@ -104,20 +104,19 @@ at 5 Hz, deploy at 317 m, +0.6 s after apogee, matching the real flight.
 
 4 outer states with internal sub-event flags (set once, diagnostic only):
 
-| Outer state | Sub-events tracked |
-|-------------|--------------------|
-| `IDLE` | — |
-| `ASCENT` | `liftoff`, `burnout` |
-| `DESCENT` | `apogee`, `freefall` |
-| `LANDED` | `parachute` |
+| Outer state | Sub-events tracked   |
+| ----------- | -------------------- |
+| `IDLE`      | —                    |     | `ASCENT` | `liftoff`, `burnout` |
+| `DESCENT`   | `apogee`, `freefall` |
+| `LANDED`    | `parachute`          |
 
 ### Transitions
 
-| From | To | Trigger |
-|------|----|---------|
-| IDLE | ASCENT | `detectLiftoff()`: totalAccel > 15 m/s² sustained via `LIFTOFF_CONFIRM_MS` (100 ms) |
-| ASCENT | DESCENT | `detectApogee()`: \|vz\| < 1.0 m/s (zero crossing / peak) |
-| DESCENT | LANDED | `detectLanded()`: \|vz\| < 0.5 m/s and altitude < 2 m |
+| From    | To      | Trigger                                                                             |
+| ------- | ------- | ----------------------------------------------------------------------------------- |
+| IDLE    | ASCENT  | `detectLiftoff()`: totalAccel > 15 m/s² sustained via `LIFTOFF_CONFIRM_MS` (100 ms) |
+| ASCENT  | DESCENT | `detectApogee()`: \|vz\| < 1.0 m/s (zero crossing / peak)                           |
+| DESCENT | LANDED  | `detectLanded()`: \|vz\| < 0.5 m/s and altitude < 2 m                               |
 
 ### Deploy logic (Option A — at apogee, not descent)
 
@@ -140,20 +139,21 @@ via `parachute_module`'s `ParachuteServo`. Validated against RocketPy
 
 ### Safety validation
 
-| Test | Scenario | Result |
-|------|----------|--------|
-| `validate_fsm_5hz.py` | 50 Hz stale-sensor model reproduces ballistic failure | PASS (deploy = None at 50 Hz, deploy at 317 m at 5 Hz) |
-| `validate_50hz_noise.py` | Quantization noise up to 20× real | PASS (0 false apogees, 0 premature deploys) |
-| `validate_freefall_backstop.py` | FSM stuck in IDLE/ASCENT | PASS (backstop deploys at apogee) |
-| `validate_baro_stale.py` | Barometer frozen mid-flight | PASS (IMU-only deploy at t=19.6s) |
-| `validate_watchdog_reboot.py` | TWDT reset during flight | PASS (NVS restores state, deploy on apogee) |
-| `validate_arming.py` | Bench vibration false-liftoff | PASS (50 m arming guard survives 22–122 m/s² spikes) |
+| Test                            | Scenario                                              | Result                                                 |
+| ------------------------------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| `validate_fsm_5hz.py`           | 50 Hz stale-sensor model reproduces ballistic failure | PASS (deploy = None at 50 Hz, deploy at 317 m at 5 Hz) |
+| `validate_50hz_noise.py`        | Quantization noise up to 20× real                     | PASS (0 false apogees, 0 premature deploys)            |
+| `validate_freefall_backstop.py` | FSM stuck in IDLE/ASCENT                              | PASS (backstop deploys at apogee)                      |
+| `validate_baro_stale.py`        | Barometer frozen mid-flight                           | PASS (IMU-only deploy at t=19.6s)                      |
+| `validate_watchdog_reboot.py`   | TWDT reset during flight                              | PASS (NVS restores state, deploy on apogee)            |
+| `validate_arming.py`            | Bench vibration false-liftoff                         | PASS (50 m arming guard survives 22–122 m/s² spikes)   |
 
 See also [`docs/modules.md`](modules.md) for the module-by-module API.
 
 ## Safety: Dual-layer deploy (FSM-independent backstop)
 
 ### Layer 1: FSM Option A
+
 Apogee + 3 consecutive cycles of Vz < -2 m/s, 50 m ground guard.
 
 ### Layer 2: Freefall backstop (independent of FSM state)
@@ -171,6 +171,7 @@ totalAccel (IIR α=0.2) < 3.0 m/s²   per 5 consecutive cycles (1.0 s)
 ```
 
 **Decisions grounded in real flight data:**
+
 - `vz < -5 m/s` is mandatory: accelerometer drops to ~0g shortly after burnout
   (rocket still ascending). Without this guard, the chute would deploy at ~190 m
   on the way up.
@@ -209,35 +210,38 @@ guard prevents false deploy.
 
 ## Resource usage
 
-| Component | RAM | Flash |
-|-----------|-----|-------|
-| Base code | ~50 KB | ~200 KB |
-| Adafruit libs | ~10 KB | ~50 KB |
-| FreeRTOS overhead | ~2 KB | ~20 KB |
-| Task stacks (3 × 8 KB avg) | 28 KB | — |
-| Queues (25 + 50 slots) | ~8 KB | — |
-| Sensor/FSM objects | ~5 KB | — |
-| **Total** | **~103 KB** | **~270 KB** |
+| Component                  | RAM         | Flash       |
+| -------------------------- | ----------- | ----------- |
+| Base code                  | ~50 KB      | ~200 KB     |
+| Adafruit libs              | ~10 KB      | ~50 KB      |
+| FreeRTOS overhead          | ~2 KB       | ~20 KB      |
+| Task stacks (3 × 8 KB avg) | 28 KB       | —           |
+| Queues (25 + 50 slots)     | ~8 KB       | —           |
+| Sensor/FSM objects         | ~5 KB       | —           |
+| **Total**                  | **~103 KB** | **~270 KB** |
 
 Available: 512 KB RAM (~20%); 8 MB flash (~3%).
 
 ## Change log (from REFACTORING_PLAN.md)
 
 ### 2026-08-04 — Freefall backstop (FSM-independent)
+
 `checkFreefallBackstop()`: acc < 3 m/s² (own IIR) for 1.0 s + vz < -5 m/s +
 h > 50 m → idempotent deploy. Validated in Python before C++
 (`validate_freefall_backstop.py` — scenarios A–D, all PASS).
 
 ### 2026-08-04 — Watchdog post-reset recovery (NVS)
+
 FSM persists snapshot to NVS (`Preferences`, namespace `flight`/key `fsm`):
 state, flags, confirmation counter, `base_pressure`, `maxAltitude`.
 `restoreFromNVS()` in `begin()`. `setupServo(keepOpen)` prevents re-closing
 an already-deployed chute. Validated: `validate_watchdog_reboot.py` (9 scenarios).
 
 ### 2026-08-05 — Real-flight risk review (5 risks)
+
 - **Risk 1** (barometer freezes mid-flight): resolved — `getLastReadingAgeMs()`
-  + IMU-only `checkBaroStaleContingency()` (deploy if baro stale >2 s + acc <3
-  m/s² + h > 50 m, validated `validate_baro_stale.py` A–D PASS).
+  - IMU-only `checkBaroStaleContingency()` (deploy if baro stale >2 s + acc <3
+    m/s² + h > 50 m, validated `validate_baro_stale.py` A–D PASS).
 - **Risk 3** (apogee lost to 50 Hz vz noise): not confirmed —
   `validate_50hz_noise.py` shows 100% apogee detection, 0 premature deploys,
   0 missed deploys up to 5 s after apogee.
@@ -246,9 +250,11 @@ an already-deployed chute. Validated: `validate_watchdog_reboot.py` (9 scenarios
   margin). vz from barometer is immunized against oscillation by construction.
 
 ### 2026-05-09 — 5 Hz flight loop (Thonyan #51 fix)
+
 `FLIGHT_CONTROL_PERIOD_MS` 20 → 200. See "Key tuning parameter: 5 Hz flight loop"
 above. This is the single change that unblocked apogee deployment for
 Dédalo II / Thonyan II.
 
 ### 2026-06-24 — All 10 phases complete
+
 v2.0 firmware fully migrated to OOP + FreeRTOS + 4-state FSM. See `CHANGELOG.md`.
